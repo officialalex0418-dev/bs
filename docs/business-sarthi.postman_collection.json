@@ -1,0 +1,248 @@
+{
+  "info": {
+    "name": "Business Sarthi API",
+    "description": "Complete API collection for Business Sarthi — Employee Tracking & Business Management SaaS. Set {{baseUrl}} and run 'Auth / Login' first; the access token is captured automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api/v1" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" }
+  ],
+  "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}" }] },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "const j = pm.response.json();",
+              "if (j.data) {",
+              "  pm.collectionVariables.set('accessToken', j.data.accessToken);",
+              "  pm.collectionVariables.set('refreshToken', j.data.refreshToken);",
+              "}"
+            ], "type": "text/javascript" }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@businesssarthi.com\",\n  \"password\": \"SuperAdmin@123\"\n}" }
+          }
+        },
+        { "name": "Me", "request": { "method": "GET", "url": "{{baseUrl}}/auth/me" } },
+        {
+          "name": "Refresh",
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/refresh",
+            "body": { "mode": "raw", "raw": "{ \"refreshToken\": \"{{refreshToken}}\" }" }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/forgot-password",
+            "body": { "mode": "raw", "raw": "{ \"email\": \"owner@himalayatraders.com\" }" }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/change-password",
+            "body": { "mode": "raw", "raw": "{ \"currentPassword\": \"old\", \"newPassword\": \"NewPass@123\" }" }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/auth/logout",
+            "body": { "mode": "raw", "raw": "{ \"refreshToken\": \"{{refreshToken}}\" }" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboards",
+      "item": [
+        { "name": "Super Admin Dashboard", "request": { "method": "GET", "url": "{{baseUrl}}/dashboard/super" } },
+        { "name": "Company Dashboard", "request": { "method": "GET", "url": "{{baseUrl}}/dashboard/company" } },
+        { "name": "Staff Dashboard", "request": { "method": "GET", "url": "{{baseUrl}}/dashboard/staff" } }
+      ]
+    },
+    {
+      "name": "Companies",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": "{{baseUrl}}/companies?page=1&search=" } },
+        {
+          "name": "Create",
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/companies",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"New Corp\",\n  \"email\": \"newcorp@example.com\",\n  \"address\": \"Kathmandu\",\n  \"panVat\": \"600000001\",\n  \"phone\": \"+977-1-5550000\",\n  \"packageId\": \"<packageId>\",\n  \"ownerName\": \"Jane Owner\",\n  \"ownerEmail\": \"jane@newcorp.com\"\n}" }
+          }
+        },
+        { "name": "Get One", "request": { "method": "GET", "url": "{{baseUrl}}/companies/:id" } },
+        {
+          "name": "Update",
+          "request": {
+            "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/companies/:id",
+            "body": { "mode": "raw", "raw": "{ \"status\": \"ACTIVE\" }" }
+          }
+        },
+        {
+          "name": "Assign Package",
+          "request": {
+            "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/companies/:id/package",
+            "body": { "mode": "raw", "raw": "{ \"packageId\": \"<packageId>\" }" }
+          }
+        },
+        { "name": "Suspend", "request": { "method": "DELETE", "url": "{{baseUrl}}/companies/:id" } }
+      ]
+    },
+    {
+      "name": "Packages",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": "{{baseUrl}}/packages" } },
+        {
+          "name": "Create",
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/packages",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Pro\",\n  \"price\": 9999,\n  \"maxStaff\": 100,\n  \"trackingIntervalMinutes\": 30,\n  \"features\": {\n    \"employeeTracking\": true,\n    \"inventoryManagement\": true,\n    \"vendorManagement\": true,\n    \"payrollManagement\": true,\n    \"salesTracking\": true\n  },\n  \"status\": \"ACTIVE\"\n}" }
+          }
+        },
+        { "name": "Update", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/packages/:id", "body": { "mode": "raw", "raw": "{ \"status\": \"INACTIVE\" }" } } },
+        { "name": "Delete", "request": { "method": "DELETE", "url": "{{baseUrl}}/packages/:id" } }
+      ]
+    },
+    {
+      "name": "Staff",
+      "item": [
+        { "name": "List (company scope)", "request": { "method": "GET", "url": "{{baseUrl}}/staff?page=1" } },
+        { "name": "List system employees", "request": { "method": "GET", "url": "{{baseUrl}}/staff?scope=system" } },
+        {
+          "name": "Create Staff",
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/staff",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"New Staff\",\n  \"email\": \"newstaff@example.com\",\n  \"phone\": \"+977-9800000000\",\n  \"position\": \"Sales Executive\",\n  \"basicSalary\": 30000,\n  \"dailyAllowance\": 300,\n  \"monthlyTarget\": 400000,\n  \"role\": \"STAFF\"\n}" }
+          }
+        },
+        { "name": "Update", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/staff/:id", "body": { "mode": "raw", "raw": "{ \"basicSalary\": 35000 }" } } },
+        { "name": "Deactivate", "request": { "method": "DELETE", "url": "{{baseUrl}}/staff/:id" } }
+      ]
+    },
+    {
+      "name": "Location Tracking",
+      "item": [
+        {
+          "name": "Push Ping (staff)",
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/locations",
+            "body": { "mode": "raw", "raw": "{\n  \"latitude\": 27.7172,\n  \"longitude\": 85.3240,\n  \"accuracy\": 12,\n  \"batteryLevel\": 76,\n  \"deviceInfo\": { \"platform\": \"android\", \"model\": \"Pixel 7\" },\n  \"source\": \"BACKGROUND\"\n}" }
+          }
+        },
+        {
+          "name": "Push Batch (offline queue)",
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/locations",
+            "body": { "mode": "raw", "raw": "{\n  \"pings\": [\n    { \"latitude\": 27.71, \"longitude\": 85.32, \"recordedAt\": \"2026-06-12T03:00:00Z\" },\n    { \"latitude\": 27.72, \"longitude\": 85.33, \"recordedAt\": \"2026-06-12T04:00:00Z\" }\n  ]\n}" }
+          }
+        },
+        { "name": "Tracking Config", "request": { "method": "GET", "url": "{{baseUrl}}/locations/config" } },
+        { "name": "Live Locations", "request": { "method": "GET", "url": "{{baseUrl}}/locations/live" } },
+        { "name": "Route History", "request": { "method": "GET", "url": "{{baseUrl}}/locations/history/:staffId?from=2026-06-11T00:00:00Z" } },
+        { "name": "Heatmap", "request": { "method": "GET", "url": "{{baseUrl}}/locations/heatmap?period=weekly" } },
+        { "name": "Movement Analysis", "request": { "method": "GET", "url": "{{baseUrl}}/locations/analysis/:staffId?period=daily" } }
+      ]
+    },
+    {
+      "name": "Attendance",
+      "item": [
+        { "name": "Check-In", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/attendance/check-in", "body": { "mode": "raw", "raw": "{ \"latitude\": 27.7172, \"longitude\": 85.3240, \"deviceInfo\": { \"platform\": \"android\" } }" } } },
+        { "name": "Check-Out", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/attendance/check-out", "body": { "mode": "raw", "raw": "{ \"latitude\": 27.7172, \"longitude\": 85.3240 }" } } },
+        { "name": "My Attendance", "request": { "method": "GET", "url": "{{baseUrl}}/attendance/me?month=2026-06" } },
+        { "name": "Company Attendance", "request": { "method": "GET", "url": "{{baseUrl}}/attendance?date=2026-06-12" } }
+      ]
+    },
+    {
+      "name": "Leaves",
+      "item": [
+        { "name": "Apply", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/leaves", "body": { "mode": "raw", "raw": "{\n  \"type\": \"PAID\",\n  \"fromDate\": \"2026-06-20\",\n  \"toDate\": \"2026-06-22\",\n  \"reason\": \"Family event\"\n}" } } },
+        { "name": "My Leaves", "request": { "method": "GET", "url": "{{baseUrl}}/leaves/me" } },
+        { "name": "Company Leaves", "request": { "method": "GET", "url": "{{baseUrl}}/leaves?status=PENDING" } },
+        { "name": "Approve / Reject", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/leaves/:id/decision", "body": { "mode": "raw", "raw": "{ \"status\": \"APPROVED\", \"note\": \"Enjoy!\" }" } } }
+      ]
+    },
+    {
+      "name": "Sales",
+      "item": [
+        { "name": "Submit Sale", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/sales", "body": { "mode": "raw", "raw": "{\n  \"productName\": \"Widget Pro\",\n  \"quantity\": 3,\n  \"amount\": 15000,\n  \"customerName\": \"ABC Stores\",\n  \"remarks\": \"Repeat customer\"\n}" } } },
+        { "name": "List Sales", "request": { "method": "GET", "url": "{{baseUrl}}/sales?period=monthly" } },
+        { "name": "Analytics", "request": { "method": "GET", "url": "{{baseUrl}}/sales/analytics?period=6months" } },
+        { "name": "My Target Summary", "request": { "method": "GET", "url": "{{baseUrl}}/sales/me/summary" } }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": "{{baseUrl}}/inventory?lowStock=false" } },
+        { "name": "Create Product", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/inventory", "body": { "mode": "raw", "raw": "{\n  \"productName\": \"Widget Pro\",\n  \"sku\": \"WID-PRO-01\",\n  \"category\": \"Widgets\",\n  \"quantity\": 100,\n  \"costPrice\": 800,\n  \"sellingPrice\": 1200,\n  \"reorderLevel\": 15\n}" } } },
+        { "name": "Adjust Stock", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/inventory/:id/stock", "body": { "mode": "raw", "raw": "{ \"type\": \"IN\", \"quantity\": 50, \"note\": \"New shipment\" }" } } },
+        { "name": "Update", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/inventory/:id", "body": { "mode": "raw", "raw": "{ \"sellingPrice\": 1300 }" } } },
+        { "name": "Delete", "request": { "method": "DELETE", "url": "{{baseUrl}}/inventory/:id" } }
+      ]
+    },
+    {
+      "name": "Vendors",
+      "item": [
+        { "name": "List", "request": { "method": "GET", "url": "{{baseUrl}}/vendors" } },
+        { "name": "Create", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/vendors", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Supply Co\",\n  \"phone\": \"+977-9811111111\",\n  \"email\": \"sales@supplyco.com\",\n  \"address\": \"Lalitpur\",\n  \"panVat\": \"600999888\"\n}" } } },
+        { "name": "Update", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/vendors/:id", "body": { "mode": "raw", "raw": "{ \"phone\": \"+977-9822222222\" }" } } },
+        { "name": "Delete", "request": { "method": "DELETE", "url": "{{baseUrl}}/vendors/:id" } }
+      ]
+    },
+    {
+      "name": "Payroll",
+      "item": [
+        { "name": "Generate (company)", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/payroll/generate", "body": { "mode": "raw", "raw": "{ \"month\": \"2026-06\" }" } } },
+        { "name": "Generate (system employees)", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/payroll/generate", "body": { "mode": "raw", "raw": "{ \"month\": \"2026-06\", \"scope\": \"system\" }" } } },
+        { "name": "List", "request": { "method": "GET", "url": "{{baseUrl}}/payroll?month=2026-06" } },
+        { "name": "Mark Paid", "request": { "method": "PATCH", "url": "{{baseUrl}}/payroll/:id/pay" } }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        { "name": "Tracking Excel", "request": { "method": "GET", "url": "{{baseUrl}}/reports/tracking/excel?period=daily" } },
+        { "name": "Attendance Excel", "request": { "method": "GET", "url": "{{baseUrl}}/reports/attendance/excel?month=2026-06" } },
+        { "name": "Sales Excel", "request": { "method": "GET", "url": "{{baseUrl}}/reports/sales/excel?period=monthly" } },
+        { "name": "Payroll Excel", "request": { "method": "GET", "url": "{{baseUrl}}/reports/payroll/excel?month=2026-06" } },
+        { "name": "Employee Summary PDF", "request": { "method": "GET", "url": "{{baseUrl}}/reports/employee/:staffId/pdf" } },
+        { "name": "Company Summary PDF", "request": { "method": "GET", "url": "{{baseUrl}}/reports/company/:companyId/pdf" } }
+      ]
+    },
+    {
+      "name": "Notifications & Settings",
+      "item": [
+        { "name": "My Notifications", "request": { "method": "GET", "url": "{{baseUrl}}/notifications?unread=true" } },
+        { "name": "Mark Read", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/notifications/read", "body": { "mode": "raw", "raw": "{}" } } },
+        { "name": "Audit Logs", "request": { "method": "GET", "url": "{{baseUrl}}/audit-logs?action=LOGIN" } },
+        { "name": "Get Settings", "request": { "method": "GET", "url": "{{baseUrl}}/settings" } },
+        { "name": "Update Settings", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/settings", "body": { "mode": "raw", "raw": "{ \"branding\": { \"appName\": \"My Workspace\" } }" } } },
+        { "name": "Update My Profile", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/profile/me", "body": { "mode": "raw", "raw": "{ \"phone\": \"+977-9800000001\" }" } } }
+      ]
+    }
+  ]
+}

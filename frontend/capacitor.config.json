@@ -1,0 +1,8 @@
+{
+  "appId": "com.businesssarthi.app",
+  "appName": "Business Sarthi",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http"
+  }
+}
