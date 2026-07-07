@@ -24,6 +24,12 @@ function getTransporter() {
       port: env.smtp.port,
       secure: env.smtp.secure,
       auth: env.smtp.user ? { user: env.smtp.user, pass: env.smtp.pass } : undefined,
+      connectionTimeout: 20000, // 20 seconds
+      greetingTimeout: 20000,
+      socketTimeout: 30000,
+      tls: {
+        rejectUnauthorized: false // Helps with some cloud network restrictions
+      }
     });
   }
   return transporter;
