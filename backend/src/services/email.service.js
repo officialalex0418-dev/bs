@@ -65,7 +65,11 @@ export async function sendEmail({ to, subject, title, bodyHtml, ctaText, ctaUrl 
         })
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'Resend API Error');
+      if (!response.ok) {
+        console.error(`❌ Resend Sandbox Restriction: ${result.message}`);
+        console.log(`🔑 [BACKUP LOG] Email failed, but here is the info: Subject: ${subject}, To: ${to}, Content: ${bodyHtml}`);
+        return null; // Don't crash the app
+      }
       return result;
     } catch (e) {
       console.error(`📧 Resend failed:`, e.message);
