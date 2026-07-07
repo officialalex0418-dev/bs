@@ -72,6 +72,7 @@ export async function sendEmail({ to, subject, title, bodyHtml, ctaText, ctaUrl 
     });
   } catch (e) {
     console.error(`📧 email failed (${subject} → ${to}):`, e.message);
+    throw e; // Propagate error so controller can catch it
   }
 }
 
