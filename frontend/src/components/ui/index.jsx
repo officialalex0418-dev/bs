@@ -3,7 +3,7 @@
  * Self-contained — no external UI dependency beyond Tailwind + lucide icons.
  */
 import { useEffect, useState, useRef } from 'react';
-import { X, Loader2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Loader2, Calendar, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { cn, formatDate } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { bsToAd, adToBs, nepaliMonths, nepaliYears, getBsMonthInfo } from '@/lib/nepaliDate';
@@ -46,13 +46,34 @@ export const Button = ({ variant = 'primary', size = 'md', loading, className, c
   );
 };
 
-export const Input = ({ label, error, className, ...props }) => (
-  <label className="block">
-    {label && <span className="mb-1.5 block text-sm font-medium">{label}</span>}
-    <input className={cn('input', error && 'border-red-500', className)} {...props} />
-    {error && <span className="mt-1 block text-xs text-red-500">{error}</span>}
-  </label>
-);
+export const Input = ({ label, error, className, ...props }) => {
+  const [show, setShow] = useState(false);
+  const isPassword = props.type === 'password';
+  const type = isPassword ? (show ? 'text' : 'password') : props.type;
+
+  return (
+    <label className="block">
+      {label && <span className="mb-1.5 block text-sm font-medium">{label}</span>}
+      <div className="relative">
+        <input
+          {...props}
+          type={type}
+          className={cn('input', isPassword && 'pr-10', error && 'border-red-500', className)}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+            onClick={() => setShow(!show)}
+          >
+            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
+      {error && <span className="mt-1 block text-xs text-red-500">{error}</span>}
+    </label>
+  );
+};
 
 export const Select = ({ label, options = [], className, ...props }) => (
   <label className="block">
