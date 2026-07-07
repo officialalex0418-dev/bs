@@ -19,17 +19,28 @@ loadBranding();
 
 function getTransporter() {
   if (!transporter) {
-    transporter = nodemailer.createTransport({
+    // If using Gmail, use the built-in 'service' config which is more reliable on cloud hosts
+    const isGmail = env.smtp.user?.endsWith('@gmail.com');
+
+    const baseConfig = isGmail ? {
+      service: 'gmail',
+      auth: {
+        user: env.smtp.user,
+        pass: env.smtp.pass,
+      },
+    } : {
       host: env.smtp.host,
       port: env.smtp.port,
       secure: env.smtp.secure,
       auth: env.smtp.user ? { user: env.smtp.user, pass: env.smtp.pass } : undefined,
-      connectionTimeout: 20000, // 20 seconds
-      greetingTimeout: 20000,
-      socketTimeout: 30000,
-      tls: {
-        rejectUnauthorized: false // Helps with some cloud network restrictions
-      }
+    };
+
+    transporter = nodemailer.createTransport({
+      ...baseConfig,
+      connectionTimeout: 30000, // Increase to 30s
+      greetingTimeout: 30000,
+      socketTimeout: 45000,
+      pool: true, // Use a connection pool for better cloud stability
     });
   }
   return transporter;
