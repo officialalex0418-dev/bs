@@ -18,6 +18,12 @@ const packageSchema = new mongoose.Schema(
       vendorManagement: { type: Boolean, default: false },
       payrollManagement: { type: Boolean, default: false },
       salesTracking: { type: Boolean, default: false },
+      complaintChat: { type: Boolean, default: false },
+    },
+    chatRetentionDays: {
+      type: Number,
+      enum: [30, 90, 180, 365],
+      default: 30,
     },
     status: { type: String, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE', index: true },
   },

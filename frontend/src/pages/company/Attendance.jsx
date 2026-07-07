@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { FileDown } from 'lucide-react';
 import { api, downloadFile } from '@/api/client';
-import { Card, Button, Table, Badge, Spinner, Pagination } from '@/components/ui';
+import { Card, Button, Table, Badge, Spinner, Pagination, DatePicker } from '@/components/ui';
 import { formatTime } from '@/lib/utils';
 
 export default function AttendancePage() {
@@ -22,8 +22,8 @@ export default function AttendancePage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Attendance</h1>
-        <div className="flex gap-2">
-          <input type="date" className="input w-auto" value={date} onChange={(e) => { setDate(e.target.value); setPage(1); }} />
+        <div className="flex items-center gap-2">
+          <DatePicker className="w-40" value={date} onChange={(val) => { setDate(val); setPage(1); }} />
           <Button variant="outline" onClick={() => downloadFile(`/reports/attendance/excel?month=${date.slice(0, 7)}`, `attendance-${date.slice(0, 7)}.xlsx`)}>
             <FileDown className="h-4 w-4" /> Month Excel
           </Button>

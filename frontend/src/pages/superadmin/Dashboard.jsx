@@ -4,8 +4,11 @@ import { api } from '@/api/client';
 import { useSocketEvent } from '@/context/SocketContext';
 import { StatCard, Card, CardHeader, CardBody, Spinner, Badge } from '@/components/ui';
 import { formatMoney, formatDateTime } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 export default function SuperDashboard() {
+  const { user } = useAuth();
+  const dateFormat = user?.company?.settings?.dateFormat || 'AD'; // SuperAdmin defaults to AD
   const [data, setData] = useState(null);
 
   const load = useCallback(async () => {
@@ -62,7 +65,7 @@ export default function SuperDashboard() {
                     <span className="font-medium">{a.user?.name || 'System'}</span>{' '}
                     <span className="text-slate-500">{a.action.replaceAll('_', ' ').toLowerCase()}</span>
                   </p>
-                  <p className="text-xs text-slate-400">{formatDateTime(a.createdAt)}</p>
+                  <p className="text-xs text-slate-400">{formatDateTime(a.createdAt, dateFormat)}</p>
                 </div>
               </div>
             ))}

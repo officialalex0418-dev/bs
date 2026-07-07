@@ -24,12 +24,9 @@ export default function ChangePassword() {
         newPassword: form.newPassword,
       });
 
-      // Update user state to reflect change
-      if (user) {
-        const updatedUser = { ...user, needsPasswordChange: false };
-        setUser(updatedUser);
-        navigate(ROLE_HOME[updatedUser.role] || '/');
-      }
+      alert('Password updated successfully. Please login again with your new password.');
+      await logout();
+      navigate('/login');
     } catch (err) {
       setError(err.response?.data?.message || 'Change failed');
     } finally {

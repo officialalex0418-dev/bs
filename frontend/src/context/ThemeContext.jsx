@@ -5,7 +5,11 @@ const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
   const [dark, setDark] = useState(() => localStorage.getItem('bs_theme') === 'dark');
-  const [branding, setBranding] = useState({ appName: 'Business Sarthi', logoUrl: '' });
+  const [branding, setBranding] = useState({
+    appName: 'Business Sarthi',
+    logoUrl: '/logo.png',
+    tagline: 'Driving Your Business Forward'
+  });
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);

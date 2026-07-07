@@ -2,8 +2,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/api/client';
 import { Card, Table, Badge, Spinner, Pagination, Input } from '@/components/ui';
 import { formatDateTime } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 export default function AuditLogs() {
+  const { user } = useAuth();
+  const dateFormat = user?.company?.settings?.dateFormat || 'AD';
   const [data, setData] = useState(null);
   const [page, setPage] = useState(1);
   const [action, setAction] = useState('');
@@ -30,7 +33,7 @@ export default function AuditLogs() {
           data={data.items}
           renderRow={(l) => (
             <tr key={l._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
-              <td className="table-td text-xs text-slate-500">{formatDateTime(l.createdAt)}</td>
+              <td className="table-td text-xs text-slate-500">{formatDateTime(l.createdAt, dateFormat)}</td>
               <td className="table-td">
                 <p className="font-medium">{l.user?.name || 'System'}</p>
                 <p className="text-xs text-slate-400">{l.user?.role || ''}</p>

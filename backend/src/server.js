@@ -5,6 +5,7 @@ import { connectDB } from './config/db.js';
 import { initSocket } from './sockets/index.js';
 
 async function main() {
+  // Trigger reload
   await connectDB();
 
   const server = http.createServer(app);

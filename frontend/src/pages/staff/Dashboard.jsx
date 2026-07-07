@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarCheck, CalendarOff, Target, Clock, MapPin, AlertTriangle } from 'lucide-react';
+import { CalendarCheck, CalendarOff, Target, Clock as ClockIcon, MapPin, AlertTriangle, MessageSquare, Mail, Phone, Building2 } from 'lucide-react';
 import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts';
 import { api } from '@/api/client';
+import { useAuth } from '@/context/AuthContext';
 import { useLocationTracker } from '@/hooks/useLocationTracker';
 import { Card, CardHeader, CardBody, Spinner, Badge, Button } from '@/components/ui';
 import { formatMoney, formatTime } from '@/lib/utils';
+import { t } from '@/lib/i18n';
+import LiveClock from '@/components/Clock';
 
 function ProgressRing({ value, color, label, sub }) {
   return (
@@ -24,15 +27,33 @@ function ProgressRing({ value, color, label, sub }) {
 }
 
 export default function StaffDashboard() {
+  const { user } = useAuth();
   const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
   const { status: trackingStatus, intervalMinutes, lastPing } = useLocationTracker(true);
+  const dateFormat = user?.company?.settings?.dateFormat || 'BS';
+  const language = user?.company?.settings?.language || 'English';
 
   const load = useCallback(async () => {
-    const { data } = await api.get('/dashboard/staff');
-    setData(data.data);
+    try {
+      const { data } = await api.get('/dashboard/staff');
+      setData(data.data);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load dashboard data');
+    }
   }, []);
+
   useEffect(() => { load(); }, [load]);
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+      <h2 className="text-xl font-bold mb-2">Error Loading Dashboard</h2>
+      <p className="text-slate-500 mb-6">{error}</p>
+      <Button onClick={load}>Try Again</Button>
+    </div>
+  );
 
   if (!data) return <Spinner />;
 
@@ -41,19 +62,29 @@ export default function StaffDashboard() {
       {/* Profile header */}
       <Card className="overflow-hidden">
         <div className="bg-gradient-to-r from-primary-600 to-primary-800 px-6 py-8 text-white">
-          <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20 text-2xl font-bold">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-white/20 bg-white/10 shadow-xl">
               {data.profile.profilePhoto
-                ? <img src={data.profile.profilePhoto} alt="" className="h-16 w-16 rounded-full object-cover" />
-                : data.profile.name?.[0]}
+                ? <img src={data.profile.profilePhoto} alt="" className="h-full w-full object-cover" />
+                : <span className="text-4xl font-bold">{data.profile.name?.[0]}</span>}
             </div>
-            <div>
-              <h1 className="text-xl font-bold">{data.profile.name}</h1>
-              <p className="text-sm text-primary-100">{data.profile.position} · {data.profile.company}</p>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold">{data.profile.name}</h1>
+              <p className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-primary-50">
+                {data.profile.position} · {data.profile.department}
+              </p>
+              <div className="flex flex-wrap gap-4 pt-1 text-sm text-primary-100">
+                <span className="flex items-center gap-1.5"><Building2 className="h-4 w-4" /> {data.profile.company}</span>
+                <span className="flex items-center gap-1.5"><Mail className="h-4 w-4" /> {data.profile.email}</span>
+                <span className="flex items-center gap-1.5"><Phone className="h-4 w-4" /> {data.profile.phone || '—'}</span>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-1 justify-center sm:mt-0 sm:justify-end">
+              <LiveClock />
             </div>
           </div>
         </div>
-        <CardBody className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <CardBody className="grid grid-cols-2 gap-3 sm:grid-cols-4 border-b border-slate-100 dark:border-slate-800">
           <div className="text-center">
             <Badge color={data.checkInStatus ? 'green' : 'gray'}>
               {data.checkInStatus ? `In ${formatTime(data.checkInTime)}` : 'Not checked in'}
@@ -86,7 +117,7 @@ export default function StaffDashboard() {
                 <MapPin className="h-4 w-4" />
               </span>
               <div>
-                <p className="font-medium">Location tracking active</p>
+                <p className="font-medium">{t('Location tracking active', language)}</p>
                 <p className="text-xs text-slate-400">
                   Pinging every {intervalMinutes} min{lastPing ? ` · last ping ${formatTime(lastPing)}` : ''}
                 </p>
@@ -107,12 +138,12 @@ export default function StaffDashboard() {
 
       {/* Targets */}
       <Card>
-        <CardHeader title="Monthly Performance" />
+        <CardHeader title={t('Monthly Performance', language)} />
         <CardBody>
           <div className="flex flex-wrap items-center justify-around gap-6">
-            <ProgressRing value={data.salesProgressPct} color="#2563eb" label="Sales Progress"
+            <ProgressRing value={data.salesProgressPct} color="#2563eb" label={t('Sales Progress', language)}
               sub={`${formatMoney(data.achievedTarget)} / ${formatMoney(data.monthlyTarget)}`} />
-            <ProgressRing value={data.attendanceProgressPct} color="#059669" label="Attendance"
+            <ProgressRing value={data.attendanceProgressPct} color="#059669" label={t('Attendance', language)}
               sub={`${data.presentDays} days present`} />
           </div>
           <div className="mt-6 grid grid-cols-3 gap-3 text-center">
@@ -135,10 +166,10 @@ export default function StaffDashboard() {
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-4">
         <Button className="h-14" onClick={() => navigate('/staff/attendance')}>
-          <Clock className="h-5 w-5" /> {data.checkInStatus ? (data.checkOutStatus ? 'Attendance' : 'Check Out') : 'Check In'}
+          <ClockIcon className="h-5 w-5" /> {data.checkInStatus ? (data.checkOutStatus ? t('Attendance', language) : t('Check Out', language)) : t('Check In', language)}
         </Button>
         <Button variant="outline" className="h-14" onClick={() => navigate('/staff/leaves')}>
-          <CalendarOff className="h-5 w-5" /> Apply Leave
+          <CalendarOff className="h-5 w-5" /> {t('Apply Leave', language)}
         </Button>
       </div>
     </div>

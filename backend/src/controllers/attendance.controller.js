@@ -1,10 +1,15 @@
 import Attendance from '../models/Attendance.js';
 import LocationLog from '../models/LocationLog.js';
+import Company from '../models/Company.js';
+import Branch from '../models/Branch.js';
 import { ApiError, asyncHandler } from '../utils/ApiError.js';
 import { getPagination, paginatedResponse } from '../utils/pagination.js';
 import { audit } from '../utils/audit.js';
 import { realtime } from '../sockets/index.js';
 import { todayStr } from '../utils/dates.js';
+import { getDistanceMeters } from '../utils/geo.js';
+
+import { reverseGeocode } from '../utils/geocoder.js';
 
 /** POST /attendance/check-in */
 export const checkIn = asyncHandler(async (req, res) => {
@@ -16,7 +21,42 @@ export const checkIn = asyncHandler(async (req, res) => {
   if (existing?.checkIn?.time) throw ApiError.conflict('Already checked in today');
 
   const { latitude, longitude, deviceInfo } = req.body;
+
+  // 1. Check radius for indoor users
+  if (req.user.workMode === 'INDOOR') {
+    if (latitude == null || longitude == null) {
+      throw ApiError.badRequest('Location is required for indoor check-in');
+    }
+
+    let targetLoc = null;
+    let radius = 200;
+
+    if (req.user.branch) {
+      const branch = await Branch.findById(req.user.branch);
+      if (branch) {
+        targetLoc = branch.location.coordinates;
+        radius = branch.radius || 200;
+      }
+    }
+
+    if (!targetLoc) {
+      const company = await Company.findById(companyId);
+      if (company?.location?.coordinates?.length === 2) {
+        targetLoc = company.location.coordinates;
+        radius = company.checkInRadiusMeters || 200;
+      }
+    }
+
+    if (targetLoc) {
+      const dist = getDistanceMeters(latitude, longitude, targetLoc[1], targetLoc[0]);
+      if (dist > radius) {
+        throw ApiError.forbidden(`You must be within ${radius}m of the office/branch to check in. Current distance: ${Math.round(dist)}m.`);
+      }
+    }
+  }
+
   const now = new Date();
+  const address = await reverseGeocode(latitude, longitude);
 
   // Late detection from company settings
   const settings = req.user.company.settings || {};
@@ -32,6 +72,7 @@ export const checkIn = asyncHandler(async (req, res) => {
         company: companyId,
         'checkIn.time': now,
         'checkIn.location': latitude != null ? { type: 'Point', coordinates: [longitude, latitude] } : undefined,
+        'checkIn.address': address,
         'checkIn.deviceInfo': deviceInfo,
         'checkIn.isLate': isLate,
         status: 'PRESENT',
@@ -44,6 +85,7 @@ export const checkIn = asyncHandler(async (req, res) => {
     LocationLog.create({
       staff: req.user._id, company: companyId,
       location: { type: 'Point', coordinates: [longitude, latitude] },
+      address,
       deviceInfo, source: 'CHECKIN', recordedAt: now,
     }).catch(() => {});
   }
@@ -64,10 +106,12 @@ export const checkOut = asyncHandler(async (req, res) => {
 
   const { latitude, longitude, deviceInfo } = req.body;
   const now = new Date();
+  const address = await reverseGeocode(latitude, longitude);
 
   attendance.checkOut = {
     time: now,
     location: latitude != null ? { type: 'Point', coordinates: [longitude, latitude] } : undefined,
+    address,
     deviceInfo,
   };
   attendance.workedMinutes = Math.round((now - attendance.checkIn.time) / 60000);
@@ -78,6 +122,7 @@ export const checkOut = asyncHandler(async (req, res) => {
     LocationLog.create({
       staff: req.user._id, company: req.user.company._id,
       location: { type: 'Point', coordinates: [longitude, latitude] },
+      address,
       deviceInfo, source: 'CHECKOUT', recordedAt: now,
     }).catch(() => {});
   }

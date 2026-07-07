@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { User, Company, Package, LocationLog, Attendance, Leave, Sale, Payroll, Notification } from '../models/index.js';
+import { User, Company, Package, LocationLog, Attendance, Leave, Sale, Payroll, Notification, Designation } from '../models/index.js';
 import { ApiError, asyncHandler } from '../utils/ApiError.js';
 import { getPagination, paginatedResponse } from '../utils/pagination.js';
 import { audit } from '../utils/audit.js';
@@ -31,7 +31,7 @@ export const listStaff = asyncHandler(async (req, res) => {
   }
 
   const [items, total] = await Promise.all([
-    User.find(filter).populate('company', 'name').sort('-createdAt').skip(skip).limit(limit),
+    User.find(filter).populate('company', 'name').populate('designation').sort('-createdAt').skip(skip).limit(limit),
     User.countDocuments(filter),
   ]);
   res.json({ success: true, data: paginatedResponse(items.map((u) => u.toSafeJSON()), total, page, limit) });
@@ -41,7 +41,7 @@ export const listStaff = asyncHandler(async (req, res) => {
 export const createStaff = asyncHandler(async (req, res) => {
   const {
     name, email, phone, address, pan, position,
-    basicSalary, dailyAllowance, role, subRole, companyId, monthlyTarget,
+    basicSalary, dailyAllowance, allowances, role, designation, companyId, monthlyTarget, workMode, branch,
   } = req.body;
 
   if (await User.findOne({ email })) throw ApiError.conflict('Email already in use');
@@ -49,9 +49,21 @@ export const createStaff = asyncHandler(async (req, res) => {
   let targetCompany = null;
   let targetRole = role || ROLES.STAFF;
 
+  if (designation) {
+    const des = await Designation.findById(designation);
+    if (des) targetRole = des.baseRole;
+  }
+
+  let finalSalary = basicSalary;
+  let finalAllowance = dailyAllowance;
+  let finalAllowances = allowances;
+
   if ([ROLES.SUPER_ADMIN, ROLES.ADMIN_EMPLOYEE].includes(req.user.role)) {
     if (targetRole === ROLES.ADMIN_EMPLOYEE) {
-      if (subRole && !ADMIN_EMPLOYEE_SUBROLES.includes(subRole)) throw ApiError.badRequest('Invalid sub-role');
+      // System employees don't have salary/allowance fields in the form now
+      finalSalary = 0;
+      finalAllowance = 0;
+      finalAllowances = 0;
     } else {
       targetCompany = companyId;
       if (!targetCompany) throw ApiError.badRequest('companyId required for company staff');
@@ -79,10 +91,12 @@ export const createStaff = asyncHandler(async (req, res) => {
   const tempPassword = crypto.randomBytes(6).toString('base64url');
   const user = await User.create({
     name, email, phone, address, pan, position,
-    basicSalary, dailyAllowance, monthlyTarget,
+    basicSalary: finalSalary, dailyAllowance: finalAllowance, allowances: finalAllowances, monthlyTarget,
     role: targetRole,
-    subRole: targetRole === ROLES.ADMIN_EMPLOYEE ? subRole : null,
+    designation: designation || null,
     company: targetCompany,
+    workMode: workMode || 'OUTDOOR',
+    branch: branch || null,
     password: tempPassword,
     needsPasswordChange: true,
   });
@@ -100,7 +114,7 @@ export const createStaff = asyncHandler(async (req, res) => {
 
 /** GET /staff/:id */
 export const getStaff = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id).populate('company', 'name');
+  const user = await User.findById(req.params.id).populate('company', 'name').populate('designation');
   if (!user) throw ApiError.notFound('User not found');
   assertSameCompanyOrPlatform(req, user);
   res.json({ success: true, data: { user: user.toSafeJSON() } });
@@ -113,25 +127,35 @@ export const updateStaff = asyncHandler(async (req, res) => {
   assertSameCompanyOrPlatform(req, user);
 
   const allowed = ['name', 'phone', 'address', 'pan', 'position', 'basicSalary',
-    'dailyAllowance', 'monthlyTarget', 'isActive', 'subRole', 'profilePhoto', 'leaveBalance', 'role'];
+    'dailyAllowance', 'monthlyTarget', 'isActive', 'subRole', 'designation', 'profilePhoto', 'leaveBalance', 'role'];
 
-  if (req.body.role !== undefined) {
+  let targetRole = req.body.role;
+  if (req.body.designation) {
+    const des = await Designation.findById(req.body.designation);
+    if (des) targetRole = des.baseRole;
+  }
+
+  if (targetRole !== undefined) {
     if ([ROLES.SUPER_ADMIN, ROLES.ADMIN_EMPLOYEE].includes(req.user.role)) {
-      if (user.role === ROLES.ADMIN_EMPLOYEE && req.body.role !== ROLES.ADMIN_EMPLOYEE) {
+      if (user.role === ROLES.ADMIN_EMPLOYEE && targetRole !== ROLES.ADMIN_EMPLOYEE) {
         throw ApiError.forbidden('System employees must remain system employees');
       }
-      if (user.role !== ROLES.ADMIN_EMPLOYEE && ![ROLES.STAFF, ROLES.COMPANY_MANAGER].includes(req.body.role)) {
+      if (user.role !== ROLES.ADMIN_EMPLOYEE && ![ROLES.STAFF, ROLES.COMPANY_MANAGER].includes(targetRole)) {
         throw ApiError.badRequest('Invalid company role');
       }
-    } else if (![ROLES.STAFF, ROLES.COMPANY_MANAGER].includes(req.body.role)) {
+    } else if (![ROLES.STAFF, ROLES.COMPANY_MANAGER].includes(targetRole)) {
       throw ApiError.forbidden('You can only edit STAFF or COMPANY_MANAGER roles');
     }
+    user.role = targetRole;
   }
 
   const oldPosition = user.position;
   const oldRole = user.role;
 
-  for (const k of allowed) if (req.body[k] !== undefined) user[k] = req.body[k];
+  for (const k of allowed) {
+    if (k === 'role') continue; // Handled above
+    if (req.body[k] !== undefined) user[k] = req.body[k];
+  }
   await user.save();
 
   if (oldPosition !== user.position || oldRole !== user.role) {

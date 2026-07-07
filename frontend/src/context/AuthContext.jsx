@@ -5,10 +5,19 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
+      // Always fetch public settings for branding
+      try {
+        const { data: s } = await api.get('/auth/settings');
+        setSettings(s.data);
+      } catch (e) {
+        console.warn('Failed to fetch public settings', e);
+      }
+
       if (!getAccessToken()) return setLoading(false);
       try {
         const { data } = await api.get('/auth/me');
@@ -56,8 +65,17 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, [user]);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const { data } = await api.get('/auth/me');
+      setUser(data.data.user);
+    } catch (e) {
+      console.error('Failed to refresh user data', e);
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, setUser, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, setUser, settings, login, logout, refreshUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

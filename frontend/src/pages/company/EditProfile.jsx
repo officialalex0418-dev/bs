@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Save, ArrowLeft, Building2 } from 'lucide-react';
+import { Camera, Save, ArrowLeft, Building2, Globe, Calendar } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/api/client';
-import { Card, CardBody, Button, Input, Textarea } from '@/components/ui';
+import { Card, CardBody, Button, Input, Textarea, Select } from '@/components/ui';
 import { fileToDataUrl } from '@/lib/utils';
 
 export default function CompanyEditProfile() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const logoInputRef = useRef(null);
 
@@ -21,6 +21,10 @@ export default function CompanyEditProfile() {
     additionalInfo: '',
     logo: '',
     registrationNumber: '',
+    settings: {
+      dateFormat: 'BS',
+      language: 'English',
+    },
   });
 
   const [loading, setLoading] = useState(false);
@@ -40,6 +44,10 @@ export default function CompanyEditProfile() {
         additionalInfo: c.additionalInfo || '',
         logo: c.logo || '',
         registrationNumber: c.registrationNumber || '',
+        settings: {
+          dateFormat: c.settings?.dateFormat || 'AD',
+          language: c.settings?.language || 'English',
+        },
       });
     });
   }, []);
@@ -49,6 +57,7 @@ export default function CompanyEditProfile() {
     setLoading(true); setError(''); setSuccess('');
     try {
       await api.patch('/companies/me', form);
+      await refreshUser();
       setSuccess('Profile updated successfully ✓');
       setTimeout(() => navigate('/company/settings'), 1500);
     } catch (err) {
@@ -124,6 +133,26 @@ export default function CompanyEditProfile() {
 
               <div className="sm:col-span-2">
                 <Textarea label="Additional Information" value={form.additionalInfo} onChange={(e) => setForm({ ...form, additionalInfo: e.target.value })} />
+              </div>
+
+              <div className="col-span-full border-t pt-6 dark:border-slate-800">
+                <h3 className="mb-4 font-bold text-slate-400 uppercase text-xs tracking-widest flex items-center gap-2">
+                  <Globe className="h-4 w-4" /> System Preferences
+                </h3>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <Select
+                    label="Date Format"
+                    value={form.settings.dateFormat}
+                    onChange={(e) => setForm({ ...form, settings: { ...form.settings, dateFormat: e.target.value } })}
+                    options={[{ value: 'AD', label: 'AD (English Date)' }, { value: 'BS', label: 'BS (Nepali Date)' }]}
+                  />
+                  <Select
+                    label="System Language"
+                    value={form.settings.language}
+                    onChange={(e) => setForm({ ...form, settings: { ...form.settings, language: e.target.value } })}
+                    options={[{ value: 'English', label: 'English' }, { value: 'Nepali', label: 'Nepali' }]}
+                  />
+                </div>
               </div>
             </div>
 

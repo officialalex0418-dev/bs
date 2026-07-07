@@ -23,12 +23,20 @@ const companySchema = new mongoose.Schema(
     website: { type: String, trim: true },
     description: { type: String, trim: true },
     additionalInfo: { type: String, trim: true },
+    location: {
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number] }, // [lng, lat]
+    },
+    checkInRadiusMeters: { type: Number, default: 200 },
     settings: {
       timezone: { type: String, default: 'Asia/Kathmandu' },
       currency: { type: String, default: 'NPR' },
       workStartTime: { type: String, default: '09:00' }, // used for late detection
       workEndTime: { type: String, default: '18:00' },
       lateGraceMinutes: { type: Number, default: 15 },
+      dateFormat: { type: String, enum: ['AD', 'BS'], default: 'BS' },
+      language: { type: String, enum: ['English', 'Nepali'], default: 'English' },
+      inventorySync: { type: Boolean, default: false },
     },
   },
   { timestamps: true }

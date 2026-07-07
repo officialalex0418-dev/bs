@@ -30,3 +30,67 @@
   .table-th { @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400; }
   .table-td { @apply px-4 py-3 text-sm; }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  /* Force colors even if background graphics are off */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Total UI Isolation */
+  body {
+    visibility: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  #invoice-printable {
+    visibility: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    padding: 15mm !important;
+    background: white !important;
+    z-index: 999999 !important;
+    box-sizing: border-box !important;
+  }
+
+  #invoice-printable * {
+    visibility: visible !important;
+  }
+
+  /* Reset all modal/container constraints */
+  #root, [role="dialog"], .card, .overflow-y-auto, .modal-container {
+    visibility: visible !important;
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
+.bg-grey-header { background-color: #9e9e9e !important; }
+.bg-grey-footer { background-color: #cecece !important; }

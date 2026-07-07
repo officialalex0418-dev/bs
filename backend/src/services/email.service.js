@@ -3,7 +3,11 @@ import { env } from '../config/env.js';
 import Setting from '../models/Setting.js';
 
 let transporter = null;
-let globalBranding = { appName: 'Business Sarthi', logoUrl: '' };
+let globalBranding = {
+  appName: 'Business Sarthi',
+  logoUrl: '',
+  tagline: 'Driving Your Business Forward'
+};
 
 async function loadBranding() {
   try {
@@ -112,6 +116,18 @@ export const emails = {
         This code is valid for <b>10 minutes</b>. If you did not request a password reset, please secure your account immediately.`,
     }),
 
+  passwordReset: (to, { name, resetUrl }) =>
+    sendEmail({
+      to,
+      subject: 'Reset Your Password',
+      title: `Password Reset Request`,
+      bodyHtml: `Hi ${name},<br/><br/>
+        We received a request to reset your Business Sarthi password. Click the button below to choose a new one.<br/><br/>
+        This link will expire in <b>30 minutes</b>.`,
+      ctaText: 'Reset Password',
+      ctaUrl: resetUrl,
+    }),
+
   passwordResetSuccess: (to, { name }) =>
     sendEmail({
       to,
@@ -120,6 +136,56 @@ export const emails = {
       bodyHtml: `Hi ${name},<br/><br/>
         This is to confirm that the password for your Business Sarthi account was successfully updated on <b>${new Date().toLocaleString()}</b>.<br/><br/>
         If you did not perform this action, please contact support immediately to lock your account.`,
+    }),
+
+  packageAssigned: (to, { companyName, packageName }) =>
+    sendEmail({
+      to,
+      subject: 'Subscription Plan Updated',
+      title: 'Package Successfully Assigned',
+      bodyHtml: `Hello,<br/><br/>
+        We are pleased to inform you that your company <b>${companyName}</b> has been moved to the <b>${packageName}</b> plan.<br/><br/>
+        Your new features and limits are now active.`,
+      ctaText: 'View Package Details',
+      ctaUrl: `${env.clientUrl}/login`,
+    }),
+
+  saleSubmitted: (to, { staffName, productName, amount, quantity }) =>
+    sendEmail({
+      to,
+      subject: 'New Sale Recorded',
+      title: 'Sale Submission Notification',
+      bodyHtml: `A new sale has been submitted by <b>${staffName}</b>.<br/><br/>
+        <b>Product:</b> ${productName}<br/>
+        <b>Quantity:</b> ${quantity}<br/>
+        <b>Total Amount:</b> NPR ${amount.toLocaleString()}`,
+      ctaText: 'View Sales Report',
+      ctaUrl: `${env.clientUrl}/login`,
+    }),
+
+  leaveDecision: (to, { name, status, type, fromDate, toDate, note }) =>
+    sendEmail({
+      to,
+      subject: `Leave Request ${status}`,
+      title: `Your Leave Request was ${status}`,
+      bodyHtml: `Hi ${name},<br/><br/>
+        Your request for <b>${type}</b> leave from <b>${fromDate}</b> to <b>${toDate}</b> has been <b>${status.toLowerCase()}</b>.<br/><br/>
+        ${note ? `<b>Reviewer's Note:</b> ${note}` : ''}`,
+      ctaText: 'View Leave Status',
+      ctaUrl: `${env.clientUrl}/login`,
+    }),
+
+  payrollGenerated: (to, { name, month, netSalary, currency }) =>
+    sendEmail({
+      to,
+      subject: `Salary Slip - ${month}`,
+      title: 'Monthly Payroll Ready',
+      bodyHtml: `Hi ${name},<br/><br/>
+        Your salary slip for <b>${month}</b> has been generated.<br/><br/>
+        <b>Net Payable:</b> ${currency} ${netSalary.toLocaleString()}<br/><br/>
+        You can download the full PDF slip from the employee dashboard.`,
+      ctaText: 'View Payroll',
+      ctaUrl: `${env.clientUrl}/login`,
     }),
 
   staffRoleChanged: (to, { name, oldPosition, newPosition, effectiveDate, remarks }) =>

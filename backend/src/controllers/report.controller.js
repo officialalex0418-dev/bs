@@ -27,8 +27,31 @@ export const trackingExcel = asyncHandler(async (req, res) => {
   const match = { recordedAt: { $gte: start, $lte: end } };
   if (req.companyId) match.company = oid(req.companyId);
 
-  const logs = await LocationLog.find(match)
-    .populate('staff', 'name position').sort('-recordedAt').limit(10000).lean();
+  const [logs, company] = await Promise.all([
+    LocationLog.find(match).populate('staff', 'name position').sort('recordedAt').limit(20000).lean(),
+    Company.findById(req.companyId).populate('package').lean()
+  ]);
+
+  const interval = company?.package?.trackingIntervalMinutes || 60;
+  const filtered = [];
+  const lastStaffTime = {};
+
+  for (const log of logs) {
+    const staffId = log.staff?._id?.toString();
+    if (!staffId) continue;
+
+    const isSpecial = ['CHECKIN', 'CHECKOUT', 'MANUAL'].includes(log.source);
+    const lastTime = lastStaffTime[staffId];
+    const currentTime = new Date(log.recordedAt).getTime();
+
+    if (isSpecial || !lastTime || (currentTime - lastTime) >= (interval * 60000) - 10000) { // 10s grace
+      filtered.push(log);
+      lastStaffTime[staffId] = currentTime;
+    }
+  }
+
+  // Sort descending for report
+  filtered.sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt));
 
   audit({ req, action: 'EXPORT_TRACKING_EXCEL', entity: 'Report' });
   await sendExcel(res, {
@@ -37,15 +60,14 @@ export const trackingExcel = asyncHandler(async (req, res) => {
     columns: [
       { header: 'Staff', key: 'staff', width: 25 },
       { header: 'Position', key: 'position', width: 18 },
-      { header: 'Latitude', key: 'lat', width: 14 },
-      { header: 'Longitude', key: 'lng', width: 14 },
+      { header: 'Location Name', key: 'address', width: 45 },
       { header: 'Accuracy (m)', key: 'accuracy', width: 12 },
       { header: 'Source', key: 'source', width: 12 },
       { header: 'Recorded At', key: 'recordedAt', width: 24 },
     ],
-    rows: logs.map((l) => ({
+    rows: filtered.map((l) => ({
       staff: l.staff?.name, position: l.staff?.position,
-      lat: l.location.coordinates[1], lng: l.location.coordinates[0],
+      address: l.address || `${l.location.coordinates[1].toFixed(5)}, ${l.location.coordinates[0].toFixed(5)}`,
       accuracy: l.accuracy, source: l.source,
       recordedAt: new Date(l.recordedAt).toLocaleString(),
     })),

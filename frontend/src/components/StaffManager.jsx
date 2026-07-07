@@ -1,22 +1,23 @@
 /**
- * Reusable staff/employee CRUD table.
- * mode="system"  → super admin system employees (role ADMIN_EMPLOYEE + subRole)
- * mode="company" → company staff (STAFF / COMPANY_MANAGER)
+ * Reusable employee CRUD table.
  */
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Pencil, Trash2, FileDown, UserMinus } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileDown, UserMinus, X } from 'lucide-react';
 import { api, downloadFile } from '@/api/client';
 import { Card, Button, Input, Select, Modal, Table, Badge, Spinner, Pagination } from '@/components/ui';
 import { formatMoney } from '@/lib/utils';
 
 const emptyForm = {
   name: '', email: '', phone: '', address: '', pan: '', position: '',
-  basicSalary: 0, dailyAllowance: 0, monthlyTarget: 0, role: 'STAFF', subRole: 'ADMIN',
+  basicSalary: 0, dailyAllowance: 0, allowances: 0, monthlyTarget: 0, role: 'STAFF', designation: '',
+  workMode: 'OUTDOOR', branch: '',
 };
 
 export default function StaffManager({ mode = 'company', companyId = null, allowCompanySelection = false }) {
   const [data, setData] = useState(null);
   const [companies, setCompanies] = useState([]);
+  const [designations, setDesignations] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(false);
@@ -31,6 +32,13 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
   }, [companyId]);
 
   useEffect(() => {
+    if (mode === 'company') {
+      api.get('/company-config/designations').then(({ data }) => setDesignations(data.data)).catch(() => {});
+      api.get('/company-config/branches').then(({ data }) => setBranches(data.data)).catch(() => {});
+    }
+    if (mode === 'system') {
+      api.get('/designations').then(res => setDesignations(res.data.data));
+    }
     if (!allowCompanySelection) return;
     (async () => {
       const { data: response } = await api.get('/companies', { params: { limit: 200 } });
@@ -38,7 +46,7 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
       setCompanies(items);
       if (!selectedCompanyId && items.length) setSelectedCompanyId(items[0]._id);
     })();
-  }, [allowCompanySelection, selectedCompanyId]);
+  }, [allowCompanySelection, selectedCompanyId, mode]);
 
   const load = useCallback(async () => {
     const params = { page, search: search || undefined };
@@ -60,12 +68,15 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
     try {
       const body = {
         ...form,
-        basicSalary: Number(form.basicSalary),
-        dailyAllowance: Number(form.dailyAllowance),
+        basicSalary: mode === 'system' ? 0 : Number(form.basicSalary),
+        dailyAllowance: mode === 'system' ? 0 : Number(form.dailyAllowance),
+        allowances: mode === 'system' ? 0 : Number(form.allowances),
         monthlyTarget: Number(form.monthlyTarget),
         role: mode === 'system' ? 'ADMIN_EMPLOYEE' : form.role,
-        subRole: mode === 'system' ? form.subRole : undefined,
+        designation: form.designation || undefined,
         companyId: mode === 'company' ? (companyId || selectedCompanyId || undefined) : undefined,
+        workMode: form.workMode,
+        branch: form.workMode === 'INDOOR' ? (form.branch || null) : null,
       };
       if (editing) {
         delete body.email; delete body.role;
@@ -97,9 +108,9 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">{mode === 'system' ? 'System Employees' : 'Staff Management'}</h1>
+        <h1 className="text-2xl font-bold">{mode === 'system' ? 'System Employees' : 'Employee Management'}</h1>
         <Button onClick={() => { setEditing(null); setForm(emptyForm); setModal(true); }} disabled={allowCompanySelection && !selectedCompanyId}>
-          <Plus className="h-4 w-4" /> Add {mode === 'system' ? 'Employee' : 'Staff'}
+          <Plus className="h-4 w-4" /> Add Employee
         </Button>
       </div>
 
@@ -112,7 +123,7 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
               onChange={(e) => { setSelectedCompanyId(e.target.value); setPage(1); }}
               options={[{ value: '', label: 'Choose a company…' }, ...companyOptions]}
             />
-            <p className="text-sm text-slate-500">Manage staff for the selected company.</p>
+            <p className="text-sm text-slate-500">Manage employees for the selected company.</p>
           </div>
         </Card>
       )}
@@ -123,7 +134,10 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
             onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="max-w-xs" />
         </div>
         <Table
-          columns={['Name', 'Contact', 'Position', mode === 'system' ? 'Role' : 'Role', 'Salary', 'Status', 'Actions']}
+          columns={mode === 'system'
+            ? ['Name', 'Contact', 'Designation', 'Status', 'Actions']
+            : ['Name', 'Contact', 'Position', 'Designation', 'Salary', 'Status', 'Actions']
+          }
           data={data.items}
           renderRow={(u) => (
             <tr key={u._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
@@ -134,7 +148,7 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
                   </div>
                   <div>
                     <p className="font-medium">{u.name}</p>
-                    <p className="text-xs text-slate-400">{u.pan || '—'}</p>
+                    <p className="text-[10px] uppercase font-bold text-primary-600">{u.workMode}</p>
                   </div>
                 </div>
               </td>
@@ -142,27 +156,31 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
                 <p>{u.email}</p>
                 <p className="text-xs text-slate-400">{u.phone || '—'}</p>
               </td>
-              <td className="table-td">{u.position || '—'}</td>
+              {mode === 'company' && <td className="table-td">{u.position || '—'}</td>}
               <td className="table-td">
-                <Badge color="blue">{mode === 'system' ? (u.subRole || 'ADMIN') : u.role.replace('COMPANY_', '')}</Badge>
+                <Badge color="blue">{u.designation?.name || (mode === 'system' ? (u.subRole || 'ADMIN') : u.role.replace('COMPANY_', ''))}</Badge>
               </td>
-              <td className="table-td">
-                <p>{formatMoney(u.basicSalary)}</p>
-                <p className="text-xs text-slate-400">+{formatMoney(u.dailyAllowance)}/day</p>
-              </td>
+              {mode === 'company' && (
+                <td className="table-td">
+                  <p>{formatMoney(u.basicSalary)}</p>
+                  <p className="text-xs text-slate-400">+{formatMoney((u.allowances || 0) + (u.dailyAllowance || 0))}</p>
+                </td>
+              )}
               <td className="table-td">
                 <Badge color={u.isActive ? 'green' : 'red'}>{u.isActive ? 'Active' : 'Inactive'}</Badge>
               </td>
               <td className="table-td">
                 <div className="flex gap-1">
                   <button className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800" title="Edit"
-                    onClick={() => { setEditing(u); setForm({ ...emptyForm, ...u }); setModal(true); }}>
+                    onClick={() => { setEditing(u); setForm({ ...emptyForm, ...u, designation: u.designation?._id || '', branch: u.branch || '' }); setModal(true); }}>
                     <Pencil className="h-4 w-4" />
                   </button>
-                  <button className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800" title="Employee PDF"
-                    onClick={() => downloadFile(`/reports/employee/${u._id}/pdf`, `employee-${u.name}.pdf`)}>
-                    <FileDown className="h-4 w-4" />
-                  </button>
+                  {mode === 'company' && (
+                    <button className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800" title="Employee PDF"
+                      onClick={() => downloadFile(`/reports/employee/${u._id}/pdf`, `employee-${u.name}.pdf`)}>
+                      <FileDown className="h-4 w-4" />
+                    </button>
+                  )}
                   <button className="rounded p-1.5 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30" title="Deactivate"
                     onClick={() => deactivate(u)}>
                     <UserMinus className="h-4 w-4" />
@@ -184,29 +202,34 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
                   </div>
                   <div>
                     <p className="font-semibold">{u.name}</p>
-                    <p className="text-xs text-slate-500">{u.position || 'No position'}</p>
+                    <p className="text-[10px] uppercase font-bold text-primary-600">{u.workMode}</p>
+                    <p className="text-xs text-slate-500">{u.designation?.name || u.position || 'No Designation'}</p>
                   </div>
                 </div>
                 <Badge color={u.isActive ? 'green' : 'red'}>{u.isActive ? 'Active' : 'Inactive'}</Badge>
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
+                <div className="col-span-2">
                   <p className="text-xs text-slate-400 uppercase tracking-wider">Contact</p>
                   <p className="truncate">{u.email}</p>
-                  <p className="text-slate-500">{u.phone || 'No phone'}</p>
+                  <p className="text-slate-500">{u.phone || '—'}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wider">Salary</p>
-                  <p>{formatMoney(u.basicSalary)}</p>
-                  <p className="text-slate-500 text-xs">+{formatMoney(u.dailyAllowance)}/day</p>
-                </div>
+                {mode === 'company' && (
+                  <div className="col-span-2 flex justify-between pt-1">
+                    <div>
+                      <p className="text-xs text-slate-400 uppercase tracking-wider">Basic Salary</p>
+                      <p>{formatMoney(u.basicSalary)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-400 uppercase tracking-wider">Allowances</p>
+                      <p>+{formatMoney((u.allowances || 0) + (u.dailyAllowance || 0))}</p>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <Button variant="outline" size="sm" onClick={() => { setEditing(u); setForm({ ...emptyForm, ...u }); setModal(true); }}>
+                <Button variant="outline" size="sm" onClick={() => { setEditing(u); setForm({ ...emptyForm, ...u, designation: u.designation?._id || '', branch: u.branch || '' }); setModal(true); }}>
                   <Pencil className="h-4 w-4 mr-1" /> Edit
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => downloadFile(`/reports/employee/${u._id}/pdf`, `employee-${u.name}.pdf`)}>
-                  <FileDown className="h-4 w-4 mr-1" /> PDF
                 </Button>
                 <Button variant="outline" size="sm" className="text-amber-600" onClick={() => deactivate(u)}>
                   <UserMinus className="h-4 w-4 mr-1" /> Deactivate
@@ -222,33 +245,39 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
       </Card>
 
       <Modal open={modal} onClose={() => setModal(false)}
-        title={editing ? `Edit ${editing.name}` : `Add ${mode === 'system' ? 'System Employee' : 'Staff'}`} wide>
+        title={editing ? `Edit ${editing.name}` : `Add Employee`} wide>
         {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
         <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input label="Full Name *" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <Input label="Email *" type="email" required disabled={!!editing} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Input label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           <Input label="PAN" value={form.pan} onChange={(e) => setForm({ ...form, pan: e.target.value })} />
-          <div className="sm:col-span-2">
-            <Input label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          </div>
           <Input label="Position" value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} />
-          {mode === 'system' ? (
-            <Select label="Role / Access" value={form.subRole} onChange={(e) => setForm({ ...form, subRole: e.target.value })}
-              options={[
-                { value: 'ADMIN', label: 'Admin' }, { value: 'HR', label: 'HR' },
-                { value: 'SUPPORT', label: 'Support' }, { value: 'FINANCE', label: 'Finance' },
-              ]} />
-          ) : (
-            <Select label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
-              options={[{ value: 'STAFF', label: 'Staff' }, { value: 'COMPANY_MANAGER', label: 'Manager' }]} />
-          )}
+
+          <Select label="Designation *" required value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })}
+            options={[
+              { value: '', label: 'Select Designation…' },
+              ...designations.map(d => ({
+                value: d._id,
+                label: d.department?.name ? `${d.name} (${d.department.name})` : d.name
+              }))
+            ]} />
+
           <Input label="Basic Salary" type="number" min="0" value={form.basicSalary} onChange={(e) => setForm({ ...form, basicSalary: e.target.value })} />
-          <Input label="Daily Allowance" type="number" min="0" value={form.dailyAllowance} onChange={(e) => setForm({ ...form, dailyAllowance: e.target.value })} />
+          <Input label="Allowances" type="number" min="0" value={form.allowances} onChange={(e) => setForm({ ...form, allowances: e.target.value })} />
+
+          <Select label="Work Mode" value={form.workMode} onChange={(e) => setForm({ ...form, workMode: e.target.value })}
+            options={[{ value: 'INDOOR', label: 'Indoor (Office Radius)' }, { value: 'OUTDOOR', label: 'Outdoor (Anywhere)' }]} />
+
+          {form.workMode === 'INDOOR' && (
+            <Select label="Linked Branch" value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })}
+              options={[{ value: '', label: 'Main Office (Company Location)' }, ...branches.map(b => ({ value: b._id, label: b.name }))]} />
+          )}
+
           {mode === 'company' && (
             <Input label="Monthly Sales Target" type="number" min="0" value={form.monthlyTarget} onChange={(e) => setForm({ ...form, monthlyTarget: e.target.value })} />
           )}
-          <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2 pt-4 border-t">
             <Button type="button" variant="ghost" onClick={() => setForm(emptyForm)}>Reset</Button>
             <Button type="button" variant="outline" onClick={() => setModal(false)}>Cancel</Button>
             <Button type="submit" loading={saving}>{editing ? 'Save Changes' : 'Create'}</Button>

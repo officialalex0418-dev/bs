@@ -3,8 +3,11 @@ import { Check, X } from 'lucide-react';
 import { api } from '@/api/client';
 import { Card, Button, Select, Table, Badge, Spinner, Pagination, Modal, Textarea } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Leaves() {
+  const { user } = useAuth();
+  const dateFormat = user?.company?.settings?.dateFormat || 'BS';
   const [data, setData] = useState(null);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
@@ -50,7 +53,7 @@ export default function Leaves() {
             <tr key={l._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
               <td className="table-td font-medium">{l.staff?.name}</td>
               <td className="table-td"><Badge color={l.type === 'PAID' ? 'blue' : l.type === 'SICK' ? 'yellow' : 'gray'}>{l.type}</Badge></td>
-              <td className="table-td text-sm">{formatDate(l.fromDate)} → {formatDate(l.toDate)}</td>
+              <td className="table-td text-sm">{formatDate(l.fromDate, dateFormat)} → {formatDate(l.toDate, dateFormat)}</td>
               <td className="table-td">{l.days}</td>
               <td className="table-td max-w-[200px] truncate text-xs text-slate-500">{l.reason || '—'}</td>
               <td className="table-td">
@@ -78,7 +81,7 @@ export default function Leaves() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-semibold">{l.staff?.name}</p>
-                  <p className="text-xs text-slate-500">{formatDate(l.fromDate)} → {formatDate(l.toDate)} ({l.days} days)</p>
+                  <p className="text-xs text-slate-500">{formatDate(l.fromDate, dateFormat)} → {formatDate(l.toDate, dateFormat)} ({l.days} days)</p>
                 </div>
                 <Badge color={l.status === 'APPROVED' ? 'green' : l.status === 'REJECTED' ? 'red' : 'yellow'}>{l.status}</Badge>
               </div>

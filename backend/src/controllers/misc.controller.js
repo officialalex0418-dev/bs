@@ -46,7 +46,16 @@ export const listAuditLogs = asyncHandler(async (req, res) => {
 // ---------- Settings ----------
 export const getPublicSettings = asyncHandler(async (req, res) => {
   const settings = await Setting.findOne({ scope: 'PLATFORM' }).select('branding');
-  res.json({ success: true, data: { branding: settings?.branding || { appName: 'Business Sarthi' } } });
+  res.json({
+    success: true,
+    data: {
+      branding: settings?.branding || {
+        appName: 'Business Sarthi',
+        logoUrl: '/logo.png',
+        tagline: 'Driving Your Business Forward'
+      }
+    }
+  });
 });
 
 export const getSettings = asyncHandler(async (req, res) => {
@@ -78,7 +87,10 @@ export const updateSettings = asyncHandler(async (req, res) => {
 // ---------- Profile (staff self-service) ----------
 export const updateMyProfile = asyncHandler(async (req, res) => {
   const allowed = ['phone', 'profilePhoto'];
-  const user = await User.findById(req.user._id);
+  const user = await User.findById(req.user._id).populate({
+    path: 'designation',
+    populate: { path: 'department', select: 'name' }
+  }).populate('company');
   for (const k of allowed) if (req.body[k] !== undefined) user[k] = req.body[k];
   await user.save({ validateBeforeSave: true });
   audit({ req, action: 'UPDATE_PROFILE', entity: 'User', entityId: user._id });

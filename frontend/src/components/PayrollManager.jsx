@@ -2,8 +2,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Wallet, FileDown, CheckCircle2, FileText } from 'lucide-react';
 import { api, downloadFile } from '@/api/client';
-import { Card, Button, Input, Table, Badge, Spinner, Pagination, Modal, Select, Textarea } from '@/components/ui';
+import { Card, Button, Input, Table, Badge, Spinner, Pagination, Modal, Select, Textarea, DatePicker, MonthPicker } from '@/components/ui';
 import { formatMoney, formatDateTime } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 const emptyForm = {
   basicSalary: 0,
@@ -20,6 +21,8 @@ const emptyForm = {
 const totalDeductions = (p) => (p.deductions?.absent || 0) + (p.deductions?.tax || 0) + (p.deductions?.other || 0);
 
 export default function PayrollManager({ scope }) {
+  const { user } = useAuth();
+  const dateFormat = user?.company?.settings?.dateFormat || 'BS';
   const [data, setData] = useState(null);
   const [page, setPage] = useState(1);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -33,10 +36,15 @@ export default function PayrollManager({ scope }) {
   const [savingDetail, setSavingDetail] = useState(false);
 
   const load = useCallback(async () => {
-    const params = { page, month: month || undefined };
-    if (scope === 'system') params.scope = 'system';
-    const { data } = await api.get('/payroll', { params });
-    setData(data.data);
+    try {
+      const params = { page, month: month || undefined };
+      if (scope === 'system') params.scope = 'system';
+      const { data } = await api.get('/payroll', { params });
+      setData(data.data);
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Failed to load payroll data');
+      setData({ items: [], pagination: { page: 1, totalPages: 1, total: 0 } });
+    }
   }, [page, month, scope]);
 
   useEffect(() => { load(); }, [load]);
@@ -131,7 +139,7 @@ export default function PayrollManager({ scope }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Payroll Management</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <input type="month" className="input w-auto" value={month} onChange={(e) => { setMonth(e.target.value); setPage(1); }} />
+          <MonthPicker className="w-44" value={month} onChange={(val) => { setMonth(val); setPage(1); }} />
           <Button onClick={generate} loading={generating}>
             <Wallet className="h-4 w-4" /> Generate Payroll
           </Button>
@@ -254,8 +262,8 @@ export default function PayrollManager({ scope }) {
                   onChange={(e) => setDetailForm({ ...detailForm, presentDays: e.target.value })} />
                 <Input label="Working Days" type="number" min="0" value={detailForm.workingDays}
                   onChange={(e) => setDetailForm({ ...detailForm, workingDays: e.target.value })} />
-                <Input label="Paid At" type="date" value={detailForm.paidAt || ''}
-                  onChange={(e) => setDetailForm({ ...detailForm, paidAt: e.target.value })} />
+                <DatePicker label="Paid At" value={detailForm.paidAt || ''}
+                  onChange={(val) => setDetailForm({ ...detailForm, paidAt: val })} />
               </div>
 
               <Select
@@ -286,7 +294,7 @@ export default function PayrollManager({ scope }) {
                   <p className="text-sm font-semibold">Edit History</p>
                   {detail.editHistory.map((entry, index) => (
                     <div key={`${entry.changedAt}-${index}`} className="text-xs text-slate-500">
-                      <span className="font-medium text-slate-700 dark:text-slate-200">{formatDateTime(entry.changedAt)}</span>
+                      <span className="font-medium text-slate-700 dark:text-slate-200">{formatDateTime(entry.changedAt, dateFormat)}</span>
                       {' '}· {entry.reason || 'No reason provided'}
                     </div>
                   ))}

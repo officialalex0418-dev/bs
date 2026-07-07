@@ -7,6 +7,7 @@ import {
 import { api, downloadFile } from '@/api/client';
 import { Card, CardHeader, CardBody, Button, Select, Table, Spinner, Pagination, StatCard, EmptyState } from '@/components/ui';
 import { formatMoney, formatDate } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 const COLORS = ['#2563eb', '#7c3aed', '#059669', '#d97706', '#dc2626', '#0891b2'];
 const PERIODS = [
@@ -18,6 +19,8 @@ const PERIODS = [
 ];
 
 export default function SalesTracker() {
+  const { user } = useAuth();
+  const dateFormat = user?.company?.settings?.dateFormat || 'BS';
   const [analytics, setAnalytics] = useState(null);
   const [sales, setSales] = useState(null);
   const [period, setPeriod] = useState('monthly');
@@ -117,7 +120,7 @@ export default function SalesTracker() {
           data={sales.items}
           renderRow={(s) => (
             <tr key={s._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
-              <td className="table-td">{formatDate(s.saleDate)}</td>
+              <td className="table-td">{formatDate(s.saleDate, dateFormat)}</td>
               <td className="table-td font-medium">{s.staff?.name}</td>
               <td className="table-td">{s.productName}</td>
               <td className="table-td">{s.quantity}</td>
@@ -131,7 +134,7 @@ export default function SalesTracker() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-semibold">{s.productName}</p>
-                  <p className="text-xs text-slate-500">{formatDate(s.saleDate)} · {s.staff?.name}</p>
+                  <p className="text-xs text-slate-500">{formatDate(s.saleDate, dateFormat)} · {s.staff?.name}</p>
                 </div>
                 <p className="font-bold text-primary-600">{formatMoney(s.amount)}</p>
               </div>

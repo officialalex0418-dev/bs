@@ -6,6 +6,8 @@ import { ApiError, asyncHandler } from '../utils/ApiError.js';
 import { realtime } from '../sockets/index.js';
 import { rangeFromPeriod, todayStr } from '../utils/dates.js';
 
+import { reverseGeocode } from '../utils/geocoder.js';
+
 const toObjectId = (id) => new mongoose.Types.ObjectId(id);
 
 /**
@@ -17,16 +19,46 @@ export const pushLocation = asyncHandler(async (req, res) => {
   const companyId = req.user.company?._id;
   if (!companyId) throw ApiError.forbidden('No company associated');
 
+  // Only track STAFF while they are checked in
+  if (req.user.role === 'STAFF') {
+    const today = todayStr();
+    const activeAtt = await Attendance.findOne({
+      staff: req.user._id,
+      date: today,
+      'checkIn.time': { $exists: true },
+      'checkOut.time': { $exists: false }
+    });
+
+    if (!activeAtt) {
+      return res.status(200).json({
+        success: true,
+        data: { saved: 0 },
+        message: 'Tracking inactive: Please check-in first'
+      });
+    }
+  }
+
   const pings = req.body.pings || [req.body];
-  const docs = pings.map((p) => ({
-    staff: req.user._id,
-    company: companyId,
-    location: { type: 'Point', coordinates: [p.longitude, p.latitude] },
-    accuracy: p.accuracy,
-    batteryLevel: p.batteryLevel,
-    deviceInfo: p.deviceInfo,
-    recordedAt: p.recordedAt ? new Date(p.recordedAt) : new Date(),
-    source: p.source || 'BACKGROUND',
+
+  // Geocode points selectively: Always geocode CHECKIN/CHECKOUT and the first point in a batch
+  // To avoid hitting API limits with 1-minute tracking.
+  const docs = await Promise.all(pings.map(async (p, index) => {
+    let address = p.address;
+    if (!address && (p.source === 'CHECKIN' || p.source === 'CHECKOUT' || index === 0)) {
+      address = await reverseGeocode(p.latitude, p.longitude);
+    }
+
+    return {
+      staff: req.user._id,
+      company: companyId,
+      location: { type: 'Point', coordinates: [p.longitude, p.latitude] },
+      address,
+      accuracy: p.accuracy,
+      batteryLevel: p.batteryLevel,
+      deviceInfo: p.deviceInfo,
+      recordedAt: p.recordedAt ? new Date(p.recordedAt) : new Date(),
+      source: p.source || 'BACKGROUND',
+    };
   }));
 
   const saved = await LocationLog.insertMany(docs, { ordered: false });
@@ -38,6 +70,7 @@ export const pushLocation = asyncHandler(async (req, res) => {
     staffName: req.user.name,
     lat: latest.location.coordinates[1],
     lng: latest.location.coordinates[0],
+    address: latest.address,
     accuracy: latest.accuracy,
     recordedAt: latest.recordedAt,
   });
@@ -52,7 +85,10 @@ export const getTrackingConfig = asyncHandler(async (req, res) => {
     success: true,
     data: {
       enabled: !!pkg?.features?.employeeTracking,
-      intervalMinutes: pkg?.trackingIntervalMinutes || 60,
+      // Track every minute to create smooth routes
+      intervalMinutes: 1,
+      // Provide the package interval for marker logic
+      packageInterval: pkg?.trackingIntervalMinutes || 60,
     },
   });
 });
@@ -127,10 +163,19 @@ export const routeHistory = asyncHandler(async (req, res) => {
   const from = req.query.from ? new Date(req.query.from) : new Date(Date.now() - 24 * 3600 * 1000);
   const to = req.query.to ? new Date(req.query.to) : new Date();
 
-  const logs = await LocationLog.find({
-    staff: staff._id,
-    recordedAt: { $gte: from, $lte: to },
-  }).sort('recordedAt').limit(5000).lean();
+  const [logs, attendance] = await Promise.all([
+    LocationLog.find({
+      staff: staff._id,
+      recordedAt: { $gte: from, $lte: to },
+    }).sort('recordedAt').limit(5000).lean(),
+    Attendance.find({
+      staff: staff._id,
+      $or: [
+        { 'checkIn.time': { $gte: from, $lte: to } },
+        { 'checkOut.time': { $gte: from, $lte: to } }
+      ]
+    }).sort('date').lean()
+  ]);
 
   res.json({
     success: true,
@@ -139,10 +184,27 @@ export const routeHistory = asyncHandler(async (req, res) => {
       points: logs.map((l) => ({
         lat: l.location.coordinates[1],
         lng: l.location.coordinates[0],
+        address: l.address,
         accuracy: l.accuracy,
         recordedAt: l.recordedAt,
         source: l.source,
       })),
+      attendance: attendance.map(a => ({
+        date: a.date,
+        checkIn: a.checkIn?.location?.coordinates ? {
+          lat: a.checkIn.location.coordinates[1],
+          lng: a.checkIn.location.coordinates[0],
+          address: a.checkIn.address,
+          time: a.checkIn.time
+        } : null,
+        checkOut: a.checkOut?.location?.coordinates ? {
+          lat: a.checkOut.location.coordinates[1],
+          lng: a.checkOut.location.coordinates[0],
+          address: a.checkOut.address,
+          time: a.checkOut.time
+        } : null
+      })),
+      packageInterval: staff.company ? (await mongoose.model('Company').findById(staff.company).populate('package'))?.package?.trackingIntervalMinutes || 60 : 60
     },
   });
 });

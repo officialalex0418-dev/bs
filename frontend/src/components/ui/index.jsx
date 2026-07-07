@@ -2,12 +2,14 @@
  * ShadCN-style primitive components (Card, Button, Input, Badge, Modal, Table, etc.)
  * Self-contained — no external UI dependency beyond Tailwind + lucide icons.
  */
-import { useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useEffect, useState, useRef } from 'react';
+import { X, Loader2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn, formatDate } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import { bsToAd, adToBs, nepaliMonths, nepaliYears, getBsMonthInfo } from '@/lib/nepaliDate';
 
-export const Card = ({ className, children }) => (
-  <div className={cn('card', className)}>{children}</div>
+export const Card = ({ className, children, ...props }) => (
+  <div className={cn('card', className)} {...props}>{children}</div>
 );
 
 export const CardHeader = ({ title, subtitle, action }) => (
@@ -70,6 +72,180 @@ export const Textarea = ({ label, className, ...props }) => (
   </label>
 );
 
+export const DatePicker = ({ label, value, onChange, className, ...props }) => {
+  const { user } = useAuth();
+  const format = user?.company?.settings?.dateFormat || 'BS';
+  const [show, setShow] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const fn = (e) => containerRef.current && !containerRef.current.contains(e.target) && setShow(false);
+    if (show) document.addEventListener('mousedown', fn);
+    return () => document.removeEventListener('mousedown', fn);
+  }, [show]);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    if (format === 'BS') {
+      try {
+        const ad = bsToAd(val);
+        onChange(ad.toISOString().split('T')[0]);
+      } catch (e) {
+        onChange(val);
+      }
+    } else {
+      onChange(val);
+    }
+  };
+
+  const displayValue = format === 'BS' ? (adToBs(value)?.formatted || '') : (value || '');
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <label className="block">
+        {label && <span className="mb-1.5 block text-sm font-medium">{label}</span>}
+        <div className="relative">
+          <input
+            type={format === 'BS' ? 'text' : 'date'}
+            placeholder={format === 'BS' ? 'YYYY-MM-DD (BS)' : ''}
+            className={cn('input pr-10', className)}
+            value={displayValue}
+            onChange={handleChange}
+            {...props}
+          />
+          <button
+            type="button"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary-500"
+            onClick={() => setShow(!show)}
+          >
+            <Calendar className="h-4 w-4" />
+          </button>
+        </div>
+      </label>
+
+      {format === 'BS' && show && (
+        <div className="absolute left-0 z-[100] mt-2 origin-top-left rounded-xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900 w-72 animate-in fade-in zoom-in duration-150">
+          <BSCalendarInternal value={value} onSelect={(val) => { onChange(val); setShow(false); }} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+const BSCalendarInternal = ({ value, onSelect }) => {
+  const [view, setView] = useState(() => {
+    const d = adToBs(value || new Date());
+    return { year: d.year, month: d.month };
+  });
+
+  const info = getBsMonthInfo(view.year, view.month);
+  if (!info) return <div className="text-xs text-red-500">Calendar Error</div>;
+
+  const days = [];
+  for (let i = 0; i < info.startDayOfWeek; i++) days.push(null);
+  for (let i = 1; i <= info.daysInMonth; i++) days.push(i);
+
+  const nav = (dir) => {
+    let { year, month } = view;
+    month += dir;
+    if (month > 12) { month = 1; year++; }
+    if (month < 1) { month = 12; year--; }
+    if (nepaliYears.includes(year)) setView({ year, month });
+  };
+
+  const selectedBs = adToBs(value)?.formatted;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <button type="button" onClick={() => nav(-1)} className="rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800">
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <div className="flex gap-2 font-bold text-slate-900 dark:text-white">
+          <select
+            className="bg-transparent outline-none cursor-pointer"
+            value={view.month}
+            onChange={(e) => setView({ ...view, month: Number(e.target.value) })}
+          >
+            {nepaliMonths.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+          </select>
+          <select
+            className="bg-transparent outline-none cursor-pointer"
+            value={view.year}
+            onChange={(e) => setView({ ...view, year: Number(e.target.value) })}
+          >
+            {nepaliYears.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <button type="button" onClick={() => nav(1)} className="rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800">
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 text-center">
+        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+          <div key={d} className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{d}</div>
+        ))}
+        {days.map((day, i) => {
+          const currentBs = day ? `${view.year}-${String(view.month).padStart(2, '0')}-${String(day).padStart(2, '0')}` : '';
+          const isSelected = day && selectedBs === currentBs;
+          return (
+            <button
+              key={i}
+              type="button"
+              disabled={!day}
+              onClick={() => {
+                const ad = bsToAd(currentBs);
+                onSelect(ad.toISOString().split('T')[0]);
+              }}
+              className={cn(
+                "h-8 w-8 rounded-lg text-sm font-medium transition-all",
+                !day ? "invisible" : "hover:bg-primary-100 hover:text-primary-700 dark:hover:bg-primary-900/40 dark:text-slate-300",
+                isSelected ? "bg-primary-600 text-white shadow-lg shadow-primary-200 dark:shadow-none" : "text-slate-600 dark:text-slate-400"
+              )}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export const MonthPicker = ({ label, value, onChange, className }) => {
+  const { user } = useAuth();
+  const format = user?.company?.settings?.dateFormat || 'BS';
+
+  if (format !== 'BS') {
+    return (
+      <label className="block">
+        {label && <span className="mb-1.5 block text-sm font-medium">{label}</span>}
+        <input type="month" className={cn('input', className)} value={value} onChange={e => onChange(e.target.value)} />
+      </label>
+    );
+  }
+
+  // Handle BS Month Picker (Simplified: two selects)
+  const [y, m] = (value && value.includes('-')) ? value.split('-') : [2081, '01'];
+
+  return (
+    <label className="block">
+      {label && <span className="mb-1.5 block text-sm font-medium">{label}</span>}
+      <div className="flex gap-2">
+        <select className="input flex-1" value={y} onChange={e => onChange(`${e.target.value}-${m}`)}>
+          {nepaliYears.map(year => <option key={year} value={year}>{year}</option>)}
+        </select>
+        <select className="input flex-1" value={m} onChange={e => onChange(`${y}-${e.target.value}`)}>
+          {nepaliMonths.map((name, idx) => (
+            <option key={idx} value={String(idx+1).padStart(2, '0')}>{name}</option>
+          ))}
+        </select>
+      </div>
+    </label>
+  );
+};
+
 export const Badge = ({ color = 'blue', children }) => {
   const colors = {
     blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
@@ -96,10 +272,10 @@ export const Modal = ({ open, onClose, title, children, wide }) => {
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4 print:static print:bg-transparent" onClick={onClose} role="dialog">
       <div
         className={cn(
-          'card flex max-h-[95vh] w-full flex-col overflow-hidden rounded-b-none sm:rounded-xl',
+          'card flex max-h-[95vh] w-full flex-col overflow-hidden rounded-b-none sm:rounded-xl print:max-h-none print:overflow-visible print:shadow-none print:border-none',
           wide ? 'max-w-4xl' : 'max-w-lg'
         )}
         onClick={(e) => e.stopPropagation()}
@@ -189,4 +365,16 @@ export const EmptyState = ({ icon: Icon, title, subtitle }) => (
     <p className="font-medium text-slate-600 dark:text-slate-300">{title}</p>
     {subtitle && <p className="mt-1 text-sm text-slate-400">{subtitle}</p>}
   </div>
+);
+
+export const Checkbox = ({ label, checked, onChange, className }) => (
+  <label className={cn('flex cursor-pointer items-center gap-2', className)}>
+    <input
+      type="checkbox"
+      className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+      checked={checked}
+      onChange={onChange}
+    />
+    {label && <span className="text-sm font-medium">{label}</span>}
+  </label>
 );

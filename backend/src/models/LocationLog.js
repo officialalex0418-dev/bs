@@ -22,6 +22,7 @@ const locationLogSchema = new mongoose.Schema(
       },
     },
     accuracy: { type: Number, min: 0 }, // metres
+    address: { type: String },
     batteryLevel: { type: Number, min: 0, max: 100 },
     deviceInfo: {
       platform: String, // android / ios / web

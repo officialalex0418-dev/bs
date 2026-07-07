@@ -1,8 +1,10 @@
 import crypto from 'crypto';
 import User from '../models/User.js';
+import Attendance from '../models/Attendance.js';
 import { ApiError, asyncHandler } from '../utils/ApiError.js';
 import { audit } from '../utils/audit.js';
 import { env } from '../config/env.js';
+import { todayStr } from '../utils/dates.js';
 import {
   signAccessToken, signRefreshToken, verifyRefreshToken,
   hashToken, persistRefreshToken,
@@ -23,7 +25,15 @@ export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email: email.toLowerCase() })
     .select('+password +refreshTokens')
-    .populate('company', 'name status package');
+    .populate({
+      path: 'company',
+      select: 'name status package settings address phone panVat registrationNumber logo website description additionalInfo',
+      populate: { path: 'package', select: 'name status features chatRetentionDays' }
+    })
+    .populate({
+      path: 'designation',
+      populate: { path: 'department', select: 'name' }
+    });
 
   if (!user || !(await user.comparePassword(password))) {
     audit({ req, user: user?._id, action: 'LOGIN_FAILED', entity: 'Auth', meta: { email }, success: false });
@@ -31,6 +41,31 @@ export const login = asyncHandler(async (req, res) => {
   }
   if (!user.isActive) throw ApiError.forbidden('Account is deactivated');
   if (user.company?.status === 'SUSPENDED') throw ApiError.forbidden('Company is suspended');
+
+  // Single device login for STAFF
+  if (user.role === 'STAFF') {
+    // 1. Force logout other devices
+    user.refreshTokens = [];
+
+    // 2. Auto-checkout if already checked in on another device
+    const today = todayStr();
+    const activeAtt = await Attendance.findOne({
+      staff: user._id,
+      date: today,
+      'checkIn.time': { $exists: true },
+      'checkOut.time': { $exists: false }
+    });
+
+    if (activeAtt) {
+      activeAtt.checkOut = {
+        time: new Date(),
+        deviceInfo: { platform: 'SYSTEM', model: 'Single-Device Force Checkout' }
+      };
+      const diff = Math.round((activeAtt.checkOut.time - activeAtt.checkIn.time) / 60000);
+      activeAtt.workedMinutes = diff > 0 ? diff : 0;
+      await activeAtt.save();
+    }
+  }
 
   const accessToken = signAccessToken(user);
   const refreshToken = signRefreshToken(user);
@@ -60,7 +95,14 @@ export const refresh = asyncHandler(async (req, res) => {
     throw ApiError.unauthorized('Invalid or expired refresh token');
   }
 
-  const user = await User.findById(payload.sub).select('+refreshTokens').populate('company', 'name status package');
+  const user = await User.findById(payload.sub).select('+refreshTokens').populate({
+    path: 'company',
+    select: 'name status package settings address phone panVat registrationNumber logo website description additionalInfo',
+    populate: { path: 'package', select: 'name status features chatRetentionDays' }
+  }).populate({
+    path: 'designation',
+    populate: { path: 'department', select: 'name' }
+  });
   if (!user || !user.isActive) throw ApiError.unauthorized('Account not found');
 
   const tokenHash = hashToken(token);

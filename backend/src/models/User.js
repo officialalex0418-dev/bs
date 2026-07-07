@@ -31,11 +31,15 @@ const userSchema = new mongoose.Schema(
     pan: { type: String, trim: true, uppercase: true, maxlength: 30 },
     password: { type: String, required: true, minlength: 8, select: false },
     role: { type: String, enum: ALL_ROLES, required: true, index: true },
-    subRole: { type: String, enum: [...ADMIN_EMPLOYEE_SUBROLES, null], default: null }, // for ADMIN_EMPLOYEE
+    subRole: { type: String, enum: [...ADMIN_EMPLOYEE_SUBROLES, null], default: null }, // for ADMIN_EMPLOYEE (Deprecated in favor of designation)
+    designation: { type: mongoose.Schema.Types.ObjectId, ref: 'Designation', default: null },
     company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', index: true, default: null },
+    branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', default: null },
     position: { type: String, trim: true, maxlength: 100 },
+    workMode: { type: String, enum: ['INDOOR', 'OUTDOOR'], default: 'OUTDOOR' },
     basicSalary: { type: Number, min: 0, default: 0 },
     dailyAllowance: { type: Number, min: 0, default: 0 },
+    allowances: { type: Number, min: 0, default: 0 },
     profilePhoto: { type: String, default: null },
     isActive: { type: Boolean, default: true, index: true },
     needsPasswordChange: { type: Boolean, default: false },

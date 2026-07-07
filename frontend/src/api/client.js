@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { FileOpener } from '@capacitor-community/file-opener';
-import { Device } from '@capacitor/device';
+import { Capacitor } from '@capacitor/core';
 
 const baseURL = `${import.meta.env.VITE_API_URL || ''}/api/v1`;
 
@@ -54,8 +54,7 @@ api.interceptors.response.use(
 
 /** Download helper for Excel / PDF report endpoints */
 export async function downloadFile(url, filename) {
-  const info = await Device.getInfo();
-  const isNative = info.platform !== 'web';
+  const isNative = Capacitor.isNativePlatform();
 
   if (isNative) {
     try {

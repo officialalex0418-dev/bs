@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { LogIn, LogOut, MapPin, AlertCircle, Settings } from 'lucide-react';
+import { LogIn, LogOut, MapPin, AlertCircle, Settings, Fingerprint, Calendar } from 'lucide-react';
 import { api } from '@/api/client';
+import { useAuth } from '@/context/AuthContext';
 import { useAppPermissions } from '@/hooks/useAppPermissions';
 import { Card, CardHeader, CardBody, Button, Table, Badge, Spinner } from '@/components/ui';
-import { formatTime } from '@/lib/utils';
+import { formatTime, formatDate } from '@/lib/utils';
 
 async function getPosition() {
   return new Promise((resolve, reject) => {
@@ -21,6 +22,8 @@ async function getPosition() {
 }
 
 export default function StaffAttendance() {
+  const { user } = useAuth();
+  const dateFormat = user?.company?.settings?.dateFormat || 'BS';
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -28,9 +31,14 @@ export default function StaffAttendance() {
   const { requestLocation } = useAppPermissions();
 
   const load = useCallback(async () => {
-    const { data } = await api.get('/attendance/me');
-    setData(data.data);
+    try {
+      const { data } = await api.get('/attendance/me');
+      setData(data.data);
+    } catch (err) {
+      console.error(err);
+    }
   }, []);
+
   useEffect(() => { load(); }, [load]);
 
   const checkLoc = async () => {
@@ -55,8 +63,38 @@ export default function StaffAttendance() {
     }
   };
 
+  const handleBiometric = async () => {
+    const isEnabled = localStorage.getItem(`biometric_${user?._id}`) === 'true';
+    if (!isEnabled) return true;
+
+    try {
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
+
+      await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          timeout: 60000,
+          userVerification: "required"
+        }
+      });
+      return true;
+    } catch (err) {
+      console.error('Biometric verification failed', err);
+      setMessage('Biometric authentication failed. Please try again.');
+      return false;
+    }
+  };
+
   const act = async (endpoint) => {
     setBusy(true); setMessage(''); setLocError(null);
+
+    const bioOk = await handleBiometric();
+    if (!bioOk) {
+      setBusy(false);
+      return;
+    }
+
     try {
       const coords = await checkLoc();
       if (!coords) {
@@ -71,17 +109,35 @@ export default function StaffAttendance() {
       setMessage(endpoint === 'check-in' ? 'Checked in successfully ✓' : 'Checked out successfully ✓');
       load();
     } catch (err) {
-      setMessage(err.response?.data?.message || 'Action failed');
+      const msg = err.response?.data?.message?.toLowerCase() || '';
+      if (msg.includes('already checked in')) {
+        setMessage('You are already checked in for today.');
+      } else if (msg.includes('not checked in')) {
+        setMessage('You need to check in first before checking out.');
+      } else if (msg.includes('outside')) {
+        setMessage('You are too far from the company location. Please check in from the office radius.');
+      } else {
+        setMessage('Unable to record attendance. Please check your internet and try again.');
+      }
     } finally { setBusy(false); }
   };
 
   if (!data) return <Spinner />;
   const today = data.today;
+  const biometricActive = localStorage.getItem(`biometric_${user?._id}`) === 'true';
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-2xl font-bold">Attendance</h1>
-      {message && <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">{message}</div>}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Daily Attendance</h1>
+        {biometricActive && (
+          <Badge color="blue" className="flex items-center gap-1">
+            <Fingerprint className="h-3 w-3" /> Biometric Active
+          </Badge>
+        )}
+      </div>
+
+      {message && <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-medium">{message}</div>}
 
       {locError && (
         <div className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-300">
@@ -95,59 +151,101 @@ export default function StaffAttendance() {
         </div>
       )}
 
-      <Card>
-        <CardBody className="flex flex-col items-center gap-4 py-10">
-          <p className="text-center text-sm text-slate-500">
-            <MapPin className="mr-1 inline h-4 w-4" />
-            GPS validation is required for check-in. Your location is logged securely.
-          </p>
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
-            <Button className="h-16 flex-1 text-lg sm:px-12" loading={busy}
-              disabled={!!today?.checkIn?.time} onClick={() => act('check-in')}>
-              <LogIn className="h-6 w-6" />
-              {today?.checkIn?.time ? `In at ${formatTime(today.checkIn.time)}` : 'Check In'}
-            </Button>
-            <Button variant="outline" className="h-16 flex-1 text-lg sm:px-12" loading={busy}
-              disabled={!today?.checkIn?.time || !!today?.checkOut?.time} onClick={() => act('check-out')}>
-              <LogOut className="h-6 w-6" />
-              {today?.checkOut?.time ? `Out at ${formatTime(today.checkOut.time)}` : 'Check Out'}
-            </Button>
-          </div>
-          {today?.checkIn?.isLate && <Badge color="red" className="px-4 py-1">Late Attendance Logged</Badge>}
-        </CardBody>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="md:col-span-2">
+          <CardBody className="flex flex-col items-center gap-6 py-10">
+            <div className="text-center space-y-1">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Current Status</p>
+              <h2 className="text-2xl font-bold text-slate-700 dark:text-slate-200">
+                {today?.checkIn?.time
+                  ? (today?.checkOut?.time ? 'Shift Completed' : 'Clocked In')
+                  : 'Not Started Today'}
+              </h2>
+            </div>
+
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
+              <Button className="h-20 flex-1 text-lg sm:px-12 flex-col gap-0" loading={busy}
+                disabled={!!today?.checkIn?.time} onClick={() => act('check-in')}>
+                <LogIn className="h-6 w-6" />
+                <span className="mt-1">Check In</span>
+                {today?.checkIn?.time && <span className="text-[10px] opacity-80">{formatTime(today.checkIn.time)}</span>}
+              </Button>
+              <Button variant="outline" className="h-20 flex-1 text-lg sm:px-12 flex-col gap-0 border-2" loading={busy}
+                disabled={!today?.checkIn?.time || !!today?.checkOut?.time} onClick={() => act('check-out')}>
+                <LogOut className="h-6 w-6" />
+                <span className="mt-1">Check Out</span>
+                {today?.checkOut?.time && <span className="text-[10px] opacity-80">{formatTime(today.checkOut.time)}</span>}
+              </Button>
+            </div>
+
+            <p className="text-center text-[10px] text-slate-400 flex items-center gap-1 uppercase tracking-wider">
+              <MapPin className="h-3 w-3" />
+              Verified GPS location is required for all entries
+            </p>
+          </CardBody>
+        </Card>
+
+        <div className="space-y-6">
+          <Card className="bg-primary-600 text-white border-0 shadow-lg shadow-primary-200 dark:shadow-none">
+            <CardBody className="p-6">
+              <Calendar className="h-8 w-8 mb-4 opacity-50" />
+              <p className="text-xs uppercase font-bold tracking-widest opacity-80">This Month</p>
+              <h3 className="text-3xl font-bold mt-1">{data.summary.presentDays} <span className="text-sm font-normal opacity-80">Days</span></h3>
+              <p className="text-xs mt-4 font-medium opacity-90">Present Days Record</p>
+            </CardBody>
+          </Card>
+
+          <Card className={today?.checkIn?.isLate ? 'bg-red-50 border-red-100' : 'bg-slate-50'}>
+            <CardBody className="p-6 flex flex-col justify-center text-center">
+              <p className="text-xs uppercase font-bold tracking-widest text-slate-400">Monthly Lates</p>
+              <h3 className={`text-3xl font-bold mt-1 ${data.summary.lateDays > 0 ? 'text-red-600' : 'text-slate-600'}`}>
+                {data.summary.lateDays}
+              </h3>
+            </CardBody>
+          </Card>
+        </div>
+      </div>
 
       <Card>
-        <CardHeader title={`Month: ${data.summary.month}`}
-          subtitle={`${data.summary.presentDays} Days Present · ${data.summary.lateDays} Late`} />
+        <CardHeader
+          title="Attendance History"
+          subtitle={`Month: ${data.summary.month}`}
+          action={<Button variant="ghost" size="sm" onClick={load}>Refresh Logs</Button>}
+        />
         <Table
-          columns={['Date', 'Check-In', 'Check-Out', 'Worked', 'Status']}
+          columns={['Date', 'Time In', 'Time Out', 'Working Hours', 'Status']}
           data={data.items}
           renderRow={(a) => (
             <tr key={a._id}>
-              <td className="table-td">{a.date}</td>
+              <td className="table-td font-medium">{formatDate(a.date, dateFormat)}</td>
               <td className="table-td">{formatTime(a.checkIn?.time)}</td>
               <td className="table-td">{formatTime(a.checkOut?.time)}</td>
               <td className="table-td">{a.workedMinutes ? `${(a.workedMinutes / 60).toFixed(1)} h` : '—'}</td>
               <td className="table-td">
                 <div className="flex flex-col gap-1">
                   <Badge color={a.status === 'PRESENT' ? 'green' : 'yellow'}>{a.status}</Badge>
-                  {a.checkIn?.isLate && <span className="text-[10px] text-red-500 font-bold uppercase">Late</span>}
+                  {a.checkIn?.isLate && <span className="text-[10px] text-red-500 font-bold uppercase tracking-tighter">Late Entry</span>}
                 </div>
               </td>
             </tr>
           )}
           mobileRender={(a) => (
-            <div key={a._id} className="p-4 space-y-2 border-b dark:border-slate-800 last:border-0">
+            <div key={a._id} className="p-4 space-y-2 border-b dark:border-slate-800 last:border-0 hover:bg-slate-50 transition-colors">
               <div className="flex items-center justify-between">
-                <p className="font-semibold">{a.date}</p>
+                <p className="font-bold text-slate-700 dark:text-slate-200">{formatDate(a.date, dateFormat)}</p>
                 <Badge color={a.status === 'PRESENT' ? 'green' : 'yellow'}>{a.status}</Badge>
               </div>
-              <div className="flex justify-between text-sm text-slate-600">
-                <p>In: {formatTime(a.checkIn?.time) || '--'}</p>
-                <p>Out: {formatTime(a.checkOut?.time) || '--'}</p>
+              <div className="grid grid-cols-2 text-sm">
+                <div>
+                  <p className="text-[10px] uppercase text-slate-400">Check In</p>
+                  <p className="font-medium text-slate-600">{formatTime(a.checkIn?.time) || '--'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] uppercase text-slate-400">Check Out</p>
+                  <p className="font-medium text-slate-600">{formatTime(a.checkOut?.time) || '--'}</p>
+                </div>
               </div>
-              {a.checkIn?.isLate && <p className="text-[10px] text-red-500 font-bold">LATE ARRIVAL</p>}
+              {a.checkIn?.isLate && <p className="text-[10px] text-red-500 font-bold bg-red-50 w-fit px-1.5 py-0.5 rounded">LATE ARRIVAL</p>}
             </div>
           )}
         />

@@ -8,10 +8,12 @@ import { useTheme } from '@/context/ThemeContext';
 import { useSocket, useSocketEvent } from '@/context/SocketContext';
 import { api } from '@/api/client';
 import { cn, ROLE_LABELS } from '@/lib/utils';
+import { t } from '@/lib/i18n';
 
 export default function DashboardLayout({ title, nav }) {
   const { user, logout } = useAuth();
   const { dark, toggle, branding } = useTheme();
+  const language = user?.company?.settings?.language || 'English';
   const { connected } = useSocket() || {};
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -79,12 +81,18 @@ export default function DashboardLayout({ title, nav }) {
       )}>
         <div className="flex h-16 items-center justify-between border-b border-slate-200 px-5 dark:border-slate-800">
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-primary-600 text-white">
-              {branding.logoUrl ? <img src={branding.logoUrl} alt="Logo" className="h-full w-full object-cover" /> : <MapPin className="h-5 w-5" />}
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white p-1 shadow-sm">
+              {branding.logoUrl ? (
+                <img src={branding.logoUrl} alt="Logo" className="h-full w-full object-contain" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-primary-600 text-white">
+                  <MapPin className="h-5 w-5" />
+                </div>
+              )}
             </div>
             <div>
               <p className="text-sm font-bold leading-tight">{branding.appName}</p>
-              <p className="text-[10px] uppercase tracking-wider text-slate-400">{title}</p>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400">{t(title, language)}</p>
             </div>
           </div>
           <button className="rounded-lg p-1 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden" onClick={() => setSidebarOpen(false)}>
@@ -106,7 +114,7 @@ export default function DashboardLayout({ title, nav }) {
               )}
             >
               <Icon className="h-4.5 w-4.5 h-5 w-5" />
-              {label}
+              {t(label, language)}
             </NavLink>
           ))}
         </nav>
@@ -171,7 +179,7 @@ export default function DashboardLayout({ title, nav }) {
               </div>
               <ChevronDown className="hidden h-4 w-4 text-slate-400 md:block" />
             </div>
-            <button onClick={handleLogout} title="Logout" className="rounded-lg p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30">
+            <button onClick={handleLogout} title={t('Logout', language)} className="rounded-lg p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30">
               <LogOut className="h-5 w-5" />
             </button>
           </div>

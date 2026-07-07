@@ -13,17 +13,25 @@ import * as location from '../controllers/location.controller.js';
 import * as attendance from '../controllers/attendance.controller.js';
 import * as leave from '../controllers/leave.controller.js';
 import * as sale from '../controllers/sale.controller.js';
+import * as salesInvoice from '../controllers/salesInvoice.controller.js';
+import * as purchase from '../controllers/purchase.controller.js';
 import * as inventory from '../controllers/inventory.controller.js';
 import * as distributor from '../controllers/distributor.controller.js';
+import * as customer from '../controllers/customer.controller.js';
 import * as vendor from '../controllers/vendor.controller.js';
 import * as payroll from '../controllers/payroll.controller.js';
+import * as cheque from '../controllers/cheque.controller.js';
 import * as dashboard from '../controllers/dashboard.controller.js';
+import * as complaint from '../controllers/complaint.controller.js';
+import * as designation from '../controllers/designation.controller.js';
+import * as companyConfig from '../controllers/companyConfig.controller.js';
 import * as report from '../controllers/report.controller.js';
 import * as misc from '../controllers/misc.controller.js';
 
 const r = Router();
 
 const PLATFORM = ['SUPER_ADMIN', 'ADMIN_EMPLOYEE'];
+const ALL_STAFF = ['COMPANY_OWNER', 'COMPANY_MANAGER', 'STAFF'];
 const MANAGERS = ['SUPER_ADMIN', 'ADMIN_EMPLOYEE', 'COMPANY_OWNER', 'COMPANY_MANAGER'];
 const OWNERS = ['SUPER_ADMIN', 'ADMIN_EMPLOYEE', 'COMPANY_OWNER'];
 
@@ -43,7 +51,7 @@ r.patch('/auth/change-password', protect, validate({ body: schemas.changePasswor
 // ============ DASHBOARDS ============
 r.get('/dashboard/super', protect, authorize(...PLATFORM), dashboard.superDashboard);
 r.get('/dashboard/company', protect, authorize(...MANAGERS), scopeCompany, dashboard.companyDashboard);
-r.get('/dashboard/staff', protect, authorize('STAFF'), dashboard.staffDashboard);
+r.get('/dashboard/staff', protect, authorize(...ALL_STAFF), dashboard.staffDashboard);
 
 // ============ COMPANIES (Super Admin) ============
 r.get('/companies', protect, authorize(...PLATFORM), company.listCompanies);
@@ -92,10 +100,22 @@ r.get('/leaves', protect, authorize(...MANAGERS), scopeCompany, leave.listLeaves
 r.patch('/leaves/:id/decision', protect, authorize(...MANAGERS), validate({ body: schemas.decideLeave }), leave.decideLeave);
 
 // ============ SALES (feature-gated) ============
-r.post('/sales', protect, authorize('STAFF', 'COMPANY_MANAGER'), requireFeature('salesTracking'), validate({ body: schemas.createSale }), sale.createSale);
-r.get('/sales', protect, scopeCompany, sale.listSales);
+r.post('/sales', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('salesTracking'), validate({ body: schemas.createSale }), sale.createSale);
+r.get('/sales', protect, scopeCompany, requireFeature('salesTracking'), sale.listSales);
 r.get('/sales/analytics', protect, authorize(...MANAGERS), scopeCompany, requireFeature('salesTracking'), sale.salesAnalytics);
-r.get('/sales/me/summary', protect, authorize('STAFF'), sale.mySalesSummary);
+r.get('/sales/me/summary', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('salesTracking'), sale.mySalesSummary);
+r.get('/sales/metadata', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('salesTracking'), sale.getSalesMetadata);
+
+// ============ SALES INVOICES ============
+r.post('/sales-invoices', protect, authorize(...ALL_STAFF), scopeCompany, validate({ body: schemas.createSalesInvoice }), salesInvoice.createSalesInvoice);
+r.get('/sales-invoices', protect, authorize(...MANAGERS), scopeCompany, salesInvoice.listSalesInvoices);
+r.get('/sales-invoices/:id', protect, authorize(...MANAGERS), scopeCompany, salesInvoice.getSalesInvoice);
+r.patch('/sales-invoices/:id', protect, authorize(...MANAGERS), scopeCompany, salesInvoice.updateSalesInvoice);
+r.delete('/sales-invoices/:id', protect, authorize(...OWNERS), scopeCompany, salesInvoice.deleteSalesInvoice);
+
+// ============ PURCHASES ============
+r.post('/purchases', protect, authorize(...MANAGERS), scopeCompany, purchase.createPurchase);
+r.get('/purchases', protect, authorize(...MANAGERS), scopeCompany, purchase.listPurchases);
 
 // ============ INVENTORY (feature-gated) ============
 r.get('/inventory', protect, authorize(...MANAGERS), scopeCompany, requireFeature('inventoryManagement'), inventory.listInventory);
@@ -113,11 +133,25 @@ r.patch('/distributors/:id', protect, authorize(...MANAGERS), scopeCompany, requ
 r.delete('/distributors/:id', protect, authorize(...OWNERS), scopeCompany, requireFeature('vendorManagement'), distributor.deleteDistributor);
 r.delete('/distributors/:id/hard', protect, authorize(...OWNERS), scopeCompany, requireFeature('vendorManagement'), distributor.hardDeleteDistributor);
 r.get('/distributors/analytics', protect, authorize(...MANAGERS), scopeCompany, distributor.distributorAnalytics);
+r.get('/distributors/:id', protect, authorize(...MANAGERS), scopeCompany, distributor.getDistributorDetails);
 r.get('/distributors/:id/ledger', protect, authorize(...MANAGERS), scopeCompany, distributor.getLedger);
+
+// ============ CHEQUES ============
+r.get('/cheques', protect, authorize(...MANAGERS), scopeCompany, cheque.listCheques);
+r.post('/cheques', protect, authorize(...MANAGERS), scopeCompany, validate({ body: schemas.chequeBody }), cheque.createCheque);
+r.patch('/cheques/:id', protect, authorize(...MANAGERS), scopeCompany, validate({ body: schemas.chequeUpdate }), cheque.updateCheque);
+r.delete('/cheques/:id', protect, authorize(...OWNERS), scopeCompany, cheque.deleteCheque);
 
 // ============ BILLING & PAYMENTS ============
 r.post('/invoices', protect, authorize(...MANAGERS), scopeCompany, distributor.createInvoice);
 r.post('/payments', protect, authorize(...MANAGERS), scopeCompany, distributor.recordPayment);
+r.delete('/payments/:id', protect, authorize(...OWNERS), scopeCompany, distributor.deletePayment);
+
+// ============ CUSTOMERS ============
+r.get('/customers', protect, scopeCompany, customer.listCustomers);
+r.post('/customers', protect, authorize(...ALL_STAFF), scopeCompany, validate({ body: schemas.customerBody }), customer.createCustomer);
+r.patch('/customers/:id', protect, authorize(...MANAGERS), scopeCompany, validate({ body: schemas.customerBody }), customer.updateCustomer);
+r.delete('/customers/:id', protect, authorize(...OWNERS), scopeCompany, customer.deleteCustomer);
 
 // ============ VENDORS (feature-gated) ============
 r.get('/vendors', protect, authorize(...MANAGERS), scopeCompany, requireFeature('vendorManagement'), vendor.listVendors);
@@ -131,6 +165,56 @@ r.get('/payroll', protect, scopeCompany, requireFeature('payrollManagement'), pa
 r.get('/payroll/:id', protect, scopeCompany, requireFeature('payrollManagement'), payroll.getPayroll);
 r.patch('/payroll/:id', protect, authorize(...MANAGERS), scopeCompany, requireFeature('payrollManagement'), validate({ body: schemas.updatePayroll }), payroll.updatePayroll);
 r.patch('/payroll/:id/pay', protect, authorize(...OWNERS), scopeCompany, requireFeature('payrollManagement'), payroll.markPaid);
+
+// ============ COMPLAINTS ============
+r.get('/complaints', protect, complaint.getComplaints);
+r.post('/complaints', protect, validate({ body: schemas.complaintBody }), complaint.createComplaint);
+r.get('/complaints/recipients', protect, complaint.getRecipients);
+r.get('/complaints/:id/messages', protect, complaint.getComplaintMessages);
+r.post('/complaints/:id/messages', protect, complaint.addReply);
+
+// ============ DESIGNATIONS ============
+r.get('/designations', protect, authorize(...PLATFORM), designation.listDesignations);
+r.post('/designations', protect, authorize('SUPER_ADMIN'), designation.createDesignation);
+r.patch('/designations/:id', protect, authorize('SUPER_ADMIN'), designation.updateDesignation);
+r.delete('/designations/:id', protect, authorize('SUPER_ADMIN'), designation.deleteDesignation);
+
+// ============ COMPANY CONFIGURATION ============
+// Company Designations
+r.get('/company-config/designations', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.listDesignations);
+r.post('/company-config/designations', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.createDesignation);
+r.patch('/company-config/designations/:id', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.updateDesignation);
+r.delete('/company-config/designations/:id', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.deleteDesignation);
+
+// Branches
+r.get('/company-config/branches', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.listBranches);
+r.post('/company-config/branches', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.createBranch);
+r.patch('/company-config/branches/:id', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.updateBranch);
+r.delete('/company-config/branches/:id', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.deleteBranch);
+
+// Shifts
+r.get('/company-config/shifts', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.listShifts);
+r.post('/company-config/shifts', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.createShift);
+r.patch('/company-config/shifts/:id', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.updateShift);
+r.delete('/company-config/shifts/:id', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.deleteShift);
+
+// Departments
+r.get('/company-config/departments', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.listDepartments);
+r.post('/company-config/departments', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.createDepartment);
+r.patch('/company-config/departments/:id', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.updateDepartment);
+r.delete('/company-config/departments/:id', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.deleteDepartment);
+
+// Leave Types
+r.get('/company-config/leave-types', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.listLeaveTypes);
+r.post('/company-config/leave-types', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.createLeaveType);
+r.patch('/company-config/leave-types/:id', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.updateLeaveType);
+r.delete('/company-config/leave-types/:id', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.deleteLeaveType);
+
+// Holidays
+r.get('/company-config/holidays', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.listHolidays);
+r.post('/company-config/holidays', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.createHoliday);
+r.patch('/company-config/holidays/:id', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.updateHoliday);
+r.delete('/company-config/holidays/:id', protect, authorize('COMPANY_OWNER', 'COMPANY_MANAGER'), scopeCompany, companyConfig.deleteHoliday);
 
 // ============ REPORTS ============
 r.get('/reports/tracking/excel', protect, authorize(...MANAGERS), scopeCompany, report.trackingExcel);

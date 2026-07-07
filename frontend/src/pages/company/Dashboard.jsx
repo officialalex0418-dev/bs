@@ -4,12 +4,18 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
 import { api } from '@/api/client';
+import { useAuth } from '@/context/AuthContext';
 import { useSocketEvent } from '@/context/SocketContext';
 import { StatCard, Card, CardHeader, CardBody, Spinner, Badge } from '@/components/ui';
 import { formatMoney, formatDateTime } from '@/lib/utils';
+import { t } from '@/lib/i18n';
+import LiveClock from '@/components/Clock';
 
 export default function CompanyDashboard() {
+  const { user } = useAuth();
   const [data, setData] = useState(null);
+  const dateFormat = user?.company?.settings?.dateFormat || 'BS';
+  const language = user?.company?.settings?.language || 'English';
 
   const load = useCallback(async () => {
     const { data } = await api.get('/dashboard/company');
@@ -45,24 +51,29 @@ export default function CompanyDashboard() {
               <div className="flex items-center justify-center gap-2 sm:justify-start">
                 <Mail className="h-4 w-4 shrink-0" /> {data.company?.email}
               </div>
-              <div className="flex items-center justify-center gap-2 sm:justify-start">
-                <Package className="h-4 w-4 shrink-0" /> Plan: <span className="font-semibold text-primary-400">{data.company?.package?.name || 'Standard'}</span>
-              </div>
+              {user?.role === 'COMPANY_OWNER' && (
+                <div className="flex items-center justify-center gap-2 sm:justify-start">
+                  <Package className="h-4 w-4 shrink-0" /> Plan: <span className="font-semibold text-primary-400">{data.company?.package?.name || 'Standard'}</span>
+                </div>
+              )}
               <div className="flex items-center justify-center gap-2 sm:justify-start text-xs opacity-80">
                 <ShieldCheck className="h-3.5 w-3.5" /> Reg: {data.company?.panVat || '—'}
               </div>
             </div>
           </div>
+          <div className="mt-6 border-t border-white/10 pt-6 sm:mt-0 sm:border-none sm:pt-0">
+             <LiveClock />
+          </div>
         </div>
       </Card>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard icon={Users} label="Total Staff" value={data.totalStaff} color="blue" />
-        <StatCard icon={UserCheck} label="Active Staff" value={data.activeStaff} color="green" />
-        <StatCard icon={CalendarCheck} label="Checked-In Today" value={data.checkedInToday} color="purple" />
-        <StatCard icon={CalendarCheck} label="Monthly Attendance" value={data.monthlyAttendance} sub="present entries this month" color="orange" />
-        <StatCard icon={TrendingUp} label="Daily Sales" value={formatMoney(data.dailySales)} color="green" />
-        <StatCard icon={Wallet} label="Monthly Sales" value={formatMoney(data.monthlySales)} color="blue" />
+        <StatCard icon={Users} label={t('Total Staff', language)} value={data.totalStaff} color="blue" />
+        <StatCard icon={UserCheck} label={t('Active Staff', language)} value={data.activeStaff} color="green" />
+        <StatCard icon={CalendarCheck} label={t('Checked-In Today', language)} value={data.checkedInToday} color="purple" />
+        <StatCard icon={CalendarCheck} label={t('Monthly Attendance', language)} value={data.monthlyAttendance} sub="present entries this month" color="orange" />
+        <StatCard icon={TrendingUp} label={t('Daily Sales', language)} value={formatMoney(data.dailySales)} color="green" />
+        <StatCard icon={Wallet} label={t('Monthly Sales', language)} value={formatMoney(data.monthlySales)} color="blue" />
       </div>
 
       {data.pendingLeaves > 0 && (
@@ -73,7 +84,7 @@ export default function CompanyDashboard() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader title="Sales — Last 6 Months" />
+          <CardHeader title={t('Sales — Last 6 Months', language)} />
           <CardBody>
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={data.salesGraph}>
@@ -94,7 +105,7 @@ export default function CompanyDashboard() {
         </Card>
 
         <Card>
-          <CardHeader title="Recent Activities" />
+          <CardHeader title={t('Recent Activities', language)} />
           <CardBody className="max-h-96 space-y-3 overflow-y-auto">
             {data.recentActivities.length === 0 && <p className="text-sm text-slate-400">No recent activity</p>}
             {data.recentActivities.map((a) => (
@@ -105,7 +116,7 @@ export default function CompanyDashboard() {
                     <span className="font-medium">{a.user?.name || 'System'}</span>{' '}
                     <span className="text-slate-500">{a.action.replaceAll('_', ' ').toLowerCase()}</span>
                   </p>
-                  <p className="text-xs text-slate-400">{formatDateTime(a.createdAt)}</p>
+                  <p className="text-xs text-slate-400">{formatDateTime(a.createdAt, dateFormat)}</p>
                 </div>
               </div>
             ))}

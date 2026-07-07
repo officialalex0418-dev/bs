@@ -32,6 +32,10 @@ export const schemas = {
     packageId: objectId.allow(null, ''),
     ownerName: Joi.string().max(120).required(),
     ownerEmail: Joi.string().email().required(),
+    registrationNumber: Joi.string().max(60).allow(''),
+    website: Joi.string().max(150).allow(''),
+    description: Joi.string().max(500).allow(''),
+    additionalInfo: Joi.string().max(1000).allow(''),
   }),
   updateCompany: Joi.object({
     name: Joi.string().max(200),
@@ -40,6 +44,11 @@ export const schemas = {
     phone: Joi.string().max(20).allow(''),
     email: Joi.string().email(),
     logo: Joi.string().allow('', null),
+    settings: Joi.object().unknown(),
+    registrationNumber: Joi.string().max(60).allow(''),
+    website: Joi.string().max(150).allow(''),
+    description: Joi.string().max(500).allow(''),
+    additionalInfo: Joi.string().max(1000).allow(''),
   }),
   assignPackage: Joi.object({ packageId: objectId.required() }),
 
@@ -56,7 +65,9 @@ export const schemas = {
       vendorManagement: Joi.boolean(),
       payrollManagement: Joi.boolean(),
       salesTracking: Joi.boolean(),
+      complaintChat: Joi.boolean(),
     }),
+    chatRetentionDays: Joi.number().valid(30, 90, 180, 365),
     status: Joi.string().valid('ACTIVE', 'INACTIVE'),
   }),
   packageUpdate: Joi.object({
@@ -71,7 +82,9 @@ export const schemas = {
       vendorManagement: Joi.boolean(),
       payrollManagement: Joi.boolean(),
       salesTracking: Joi.boolean(),
+      complaintChat: Joi.boolean(),
     }),
+    chatRetentionDays: Joi.number().valid(30, 90, 180, 365),
     status: Joi.string().valid('ACTIVE', 'INACTIVE'),
   }),
 
@@ -143,6 +156,22 @@ export const schemas = {
     remarks: Joi.string().max(500).allow(''),
   }),
 
+  // ---- Sales Invoice ----
+  createSalesInvoice: Joi.object({
+    distributorId: objectId.allow(null, ''),
+    customerName: Joi.string().max(150).allow(''),
+    items: Joi.array().items(Joi.object({
+      productId: objectId.required(),
+      productName: Joi.string().required(),
+      batch: Joi.string().allow(''),
+      price: Joi.number().min(0).required(),
+      quantity: Joi.number().integer().min(1).required(),
+    })).min(1).required(),
+    discountPct: Joi.number().min(0).max(100),
+    vatPct: Joi.number().min(0).max(100),
+    paymentMethod: Joi.string().valid('Cash', 'Online/QR', 'Cheque', 'Credit').required(),
+  }),
+
   // ---- Inventory ----
   productBody: Joi.object({
     productName: Joi.string().max(200).required(),
@@ -169,6 +198,15 @@ export const schemas = {
     panVat: Joi.string().max(30).allow(''),
   }),
 
+  // ---- Customer ----
+  customerBody: Joi.object({
+    name: Joi.string().max(200).required(),
+    address: Joi.string().max(300).allow(''),
+    contactNumber: Joi.string().max(20).allow(''),
+    panVat: Joi.string().max(30).allow(''),
+    ownerName: Joi.string().max(120).allow(''),
+  }),
+
   // ---- Payroll ----
   generatePayroll: Joi.object({
     month: Joi.string().pattern(/^\d{4}-\d{2}$/),
@@ -189,5 +227,35 @@ export const schemas = {
     status: Joi.string().valid('DRAFT', 'GENERATED', 'PAID'),
     paidAt: Joi.date().allow(null),
     remarks: Joi.string().max(300).allow(''),
+  }),
+
+  // ---- Complaint ----
+  complaintBody: Joi.object({
+    subject: Joi.string().max(200).required(),
+    message: Joi.string().max(2000).required(),
+    isGroup: Joi.boolean(),
+    recipientId: objectId.allow(null, ''),
+  }),
+
+  // ---- Cheque ----
+  chequeBody: Joi.object({
+    distributor: objectId.required(),
+    chequeNumber: Joi.string().required(),
+    bankName: Joi.string().required(),
+    issueDate: Joi.date().allow(null, ''),
+    cashDate: Joi.date().required(),
+    amount: Joi.number().min(0).required(),
+    status: Joi.string().valid('ISSUED', 'COLLECTED', 'DEPOSITED', 'CASHED', 'BOUNCED'),
+    remarks: Joi.string().allow('', null),
+  }),
+  chequeUpdate: Joi.object({
+    distributor: objectId,
+    chequeNumber: Joi.string(),
+    bankName: Joi.string(),
+    issueDate: Joi.date().allow(null, ''),
+    cashDate: Joi.date(),
+    amount: Joi.number().min(0),
+    status: Joi.string().valid('ISSUED', 'COLLECTED', 'DEPOSITED', 'CASHED', 'BOUNCED'),
+    remarks: Joi.string().allow('', null),
   }),
 };

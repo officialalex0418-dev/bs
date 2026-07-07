@@ -28,7 +28,10 @@ export const listCompanies = asyncHandler(async (req, res) => {
 
 /** POST /companies (Super Admin) — creates company + owner account */
 export const createCompany = asyncHandler(async (req, res) => {
-  const { name, address, panVat, phone, email, logo, packageId, ownerName, ownerEmail } = req.body;
+  const {
+    name, address, panVat, phone, email, logo, packageId, ownerName, ownerEmail,
+    location, checkInRadiusMeters, settings, registrationNumber, website, description, additionalInfo
+  } = req.body;
 
   if (await Company.findOne({ email })) throw ApiError.conflict('Company email already exists');
   if (await User.findOne({ email: ownerEmail })) throw ApiError.conflict('Owner email already in use');
@@ -38,8 +41,12 @@ export const createCompany = asyncHandler(async (req, res) => {
 
   const company = await Company.create({
     name, address, panVat, phone, email, logo,
+    registrationNumber, website, description, additionalInfo,
     package: pkg?._id || null,
     packageAssignedAt: pkg ? new Date() : null,
+    location,
+    checkInRadiusMeters,
+    settings: settings || {}
   });
 
   const tempPassword = crypto.randomBytes(6).toString('base64url');
@@ -50,6 +57,7 @@ export const createCompany = asyncHandler(async (req, res) => {
     role: ROLES.COMPANY_OWNER,
     company: company._id,
     isEmailVerified: false,
+    needsPasswordChange: true,
   });
   company.owner = owner._id;
   await company.save();
@@ -80,10 +88,12 @@ export const myCompany = asyncHandler(async (req, res) => {
 /** PATCH /companies/me — company owner can edit own company details */
 export const updateMyCompany = asyncHandler(async (req, res) => {
   if (!req.user.company) throw ApiError.forbidden('No company associated with this account');
-  const updates = (({ name, address, panVat, phone, email, logo }) => ({ name, address, panVat, phone, email, logo }))(req.body);
+  const updates = (({ name, address, panVat, phone, email, logo, settings, registrationNumber, website, description, additionalInfo }) =>
+    ({ name, address, panVat, phone, email, logo, settings, registrationNumber, website, description, additionalInfo }))(req.body);
   Object.keys(updates).forEach((k) => updates[k] === undefined && delete updates[k]);
 
-  const company = await Company.findByIdAndUpdate(req.user.company, updates, { new: true, runValidators: true })
+  const companyId = req.user.company._id || req.user.company;
+  const company = await Company.findByIdAndUpdate(companyId, updates, { new: true, runValidators: true })
     .populate('package').populate('owner', 'name email phone');
   if (!company) throw ApiError.notFound('Company not found');
 
@@ -93,8 +103,8 @@ export const updateMyCompany = asyncHandler(async (req, res) => {
 
 /** PATCH /companies/:id */
 export const updateCompany = asyncHandler(async (req, res) => {
-  const updates = (({ name, address, panVat, phone, email, logo, status, settings }) =>
-    ({ name, address, panVat, phone, email, logo, status, settings }))(req.body);
+  const updates = (({ name, address, panVat, phone, email, logo, status, settings, registrationNumber, website, description, additionalInfo }) =>
+    ({ name, address, panVat, phone, email, logo, status, settings, registrationNumber, website, description, additionalInfo }))(req.body);
   Object.keys(updates).forEach((k) => updates[k] === undefined && delete updates[k]);
 
   const company = await Company.findByIdAndUpdate(req.params.id, updates, {

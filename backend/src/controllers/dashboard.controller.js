@@ -110,15 +110,16 @@ export const companyDashboard = asyncHandler(async (req, res) => {
 
 /** GET /dashboard/staff — Staff app dashboard */
 export const staffDashboard = asyncHandler(async (req, res) => {
+  const userId = oid(req.user._id);
   const today = todayStr();
   const month = today.slice(0, 7);
   const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
 
   const [todayAttendance, monthAttendance, salesAgg] = await Promise.all([
-    Attendance.findOne({ staff: req.user._id, date: today }),
-    Attendance.find({ staff: req.user._id, date: { $regex: `^${month}` } }).lean(),
+    Attendance.findOne({ staff: userId, date: today }),
+    Attendance.find({ staff: userId, date: { $regex: `^${month}` } }).lean(),
     Sale.aggregate([
-      { $match: { staff: req.user._id, saleDate: { $gte: startOfMonth } } },
+      { $match: { staff: userId, saleDate: { $gte: startOfMonth } } },
       { $group: { _id: null, achieved: { $sum: '$amount' }, count: { $sum: 1 } } },
     ]),
   ]);
@@ -136,6 +137,9 @@ export const staffDashboard = asyncHandler(async (req, res) => {
         position: req.user.position,
         profilePhoto: req.user.profilePhoto,
         company: req.user.company?.name,
+        email: req.user.email,
+        phone: req.user.phone,
+        department: req.user.designation?.department?.name || '—',
       },
       checkInStatus: !!todayAttendance?.checkIn?.time,
       checkOutStatus: !!todayAttendance?.checkOut?.time,

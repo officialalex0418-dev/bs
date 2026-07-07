@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Sale from '../models/Sale.js';
 import User from '../models/User.js';
 import Inventory from '../models/Inventory.js';
+import Customer from '../models/Customer.js';
 import { ApiError, asyncHandler } from '../utils/ApiError.js';
 import { getPagination, paginatedResponse } from '../utils/pagination.js';
 import { audit } from '../utils/audit.js';
@@ -14,17 +15,47 @@ const oid = (id) => new mongoose.Types.ObjectId(id);
 
 /** POST /sales — staff submits a sale */
 export const createSale = asyncHandler(async (req, res) => {
-  const companyId = req.user.company._id;
+  const companyId = req.companyId;
   const { productId, productName, quantity, amount, customerName, remarks } = req.body;
+
+  // Robust check for inventorySync setting
+  let inventorySync = false;
+  if (req.user.company && typeof req.user.company === 'object') {
+    inventorySync = req.user.company.settings?.inventorySync || false;
+  } else if (req.user.company) {
+    // If somehow not populated, fetch it
+    const comp = await mongoose.model('Company').findById(req.user.company).select('settings');
+    inventorySync = comp?.settings?.inventorySync || false;
+  }
 
   let product = null;
   if (productId) {
-    product = await Inventory.findOne({ _id: productId, company: companyId });
+    product = await Inventory.findOne({ _id: productId, company: companyId }).select('+movements');
     if (!product) throw ApiError.notFound('Product not found in inventory');
-    if (product.quantity < quantity) throw ApiError.badRequest(`Insufficient stock (${product.quantity} left)`);
-    product.quantity -= quantity;
-    product.movements.push({ type: 'OUT', quantity, note: 'Sale', by: req.user._id });
-    await product.save();
+
+    if (inventorySync) {
+      const qty = Number(quantity);
+      if (product.quantity < qty) {
+        throw ApiError.badRequest(`Insufficient stock (${product.quantity} left)`);
+      }
+      product.quantity -= qty;
+      product.movements.push({ type: 'OUT', quantity: qty, note: 'Sale', by: req.user._id });
+      await product.save();
+    }
+  }
+
+  // Handle Customer: Store if new
+  let customerId = null;
+  if (customerName && customerName.trim()) {
+    let existingCust = await Customer.findOne({ company: companyId, name: { $regex: `^${customerName.trim()}$`, $options: 'i' } });
+    if (!existingCust) {
+      existingCust = await Customer.create({
+        company: companyId,
+        name: customerName.trim(),
+        createdBy: req.user._id
+      });
+    }
+    customerId = existingCust._id;
   }
 
   const sale = await Sale.create({
@@ -32,7 +63,10 @@ export const createSale = asyncHandler(async (req, res) => {
     staff: req.user._id,
     product: product?._id || null,
     productName: product?.productName || productName,
-    quantity, amount, customerName, remarks,
+    quantity, amount,
+    customer: customerId,
+    customerName,
+    remarks,
   });
 
   // notify owner(s)
@@ -47,8 +81,8 @@ export const createSale = asyncHandler(async (req, res) => {
     });
   }
 
-  // low stock alert
-  if (product && product.quantity <= product.reorderLevel) {
+  // low stock alert (only if sync is on)
+  if (inventorySync && product && product.quantity <= product.reorderLevel) {
     for (const o of owners) {
       notify({
         recipient: o._id, company: companyId, type: 'LOW_STOCK',
@@ -131,7 +165,7 @@ export const salesAnalytics = asyncHandler(async (req, res) => {
 export const mySalesSummary = asyncHandler(async (req, res) => {
   const { start, end } = rangeFromPeriod('monthly');
   const result = await Sale.aggregate([
-    { $match: { staff: req.user._id, saleDate: { $gte: start, $lte: end } } },
+    { $match: { staff: req.user._id, company: oid(req.companyId), saleDate: { $gte: start, $lte: end } } },
     { $group: { _id: null, achieved: { $sum: '$amount' }, count: { $sum: 1 } } },
   ]);
   const achieved = result[0]?.achieved || 0;
@@ -144,6 +178,24 @@ export const mySalesSummary = asyncHandler(async (req, res) => {
       remaining: Math.max(target - achieved, 0),
       progressPct: target ? Math.min(Math.round((achieved / target) * 100), 100) : 0,
       salesCount: result[0]?.count || 0,
+    },
+  });
+});
+
+/** GET /sales/metadata - fetch products and customers for staff sales entry */
+export const getSalesMetadata = asyncHandler(async (req, res) => {
+  const companyId = req.companyId;
+
+  const [products, customers] = await Promise.all([
+    Inventory.find({ company: companyId, isActive: true }).select('productName sellingPrice quantity sku batchNumber'),
+    Customer.find({ company: companyId }).select('name address contactNumber panVat ownerName').sort('name'),
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      products,
+      customers,
     },
   });
 });

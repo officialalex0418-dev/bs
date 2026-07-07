@@ -5,13 +5,16 @@ import { useSocketEvent } from '@/context/SocketContext';
 import { Card, CardHeader, CardBody, Button, Select, Spinner, Badge } from '@/components/ui';
 import LiveMap from '@/components/LiveMap';
 import { formatDateTime } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 export default function LiveTracking() {
+  const { user } = useAuth();
+  const dateFormat = user?.company?.settings?.dateFormat || 'BS';
   const [tab, setTab] = useState('live'); // live | route | heatmap
   const [markers, setMarkers] = useState(null);
   const [staffList, setStaffList] = useState([]);
   const [selectedStaff, setSelectedStaff] = useState('');
-  const [route, setRoute] = useState([]);
+  const [routeData, setRouteData] = useState({ points: [], attendance: [], packageInterval: 60 });
   const [analysis, setAnalysis] = useState(null);
   const [heat, setHeat] = useState([]);
   const [period, setPeriod] = useState('daily');
@@ -46,7 +49,11 @@ export default function LiveTracking() {
       api.get(`/locations/history/${selectedStaff}?from=${from}`),
       api.get(`/locations/analysis/${selectedStaff}?period=${period}`),
     ]);
-    setRoute(r.data.data.points);
+    setRouteData({
+      points: r.data.data.points,
+      attendance: r.data.data.attendance || [],
+      packageInterval: r.data.data.packageInterval || 60
+    });
     setAnalysis(a.data.data);
   };
 
@@ -97,7 +104,7 @@ export default function LiveTracking() {
                     {m.batteryLevel != null && <Badge color={m.batteryLevel > 20 ? 'green' : 'red'}>🔋 {m.batteryLevel}%</Badge>}
                   </div>
                   <p className="mt-1 text-xs text-slate-400">
-                    {m.lat.toFixed(5)}, {m.lng.toFixed(5)} · {formatDateTime(m.recordedAt)}
+                    {m.lat != null ? `${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}` : 'No GPS data'} · {formatDateTime(m.recordedAt, dateFormat)}
                   </p>
                 </div>
               ))}
@@ -137,7 +144,11 @@ export default function LiveTracking() {
               </div>
             )}
           </Card>
-          <LiveMap route={route} />
+          <LiveMap
+            route={routeData.points}
+            attendance={routeData.attendance}
+            markerInterval={routeData.packageInterval}
+          />
         </div>
       )}
 

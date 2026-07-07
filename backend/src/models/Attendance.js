@@ -13,12 +13,14 @@ const attendanceSchema = new mongoose.Schema(
     checkIn: {
       time: Date,
       location: geoPoint,
+      address: String,
       deviceInfo: { platform: String, model: String },
       isLate: { type: Boolean, default: false },
     },
     checkOut: {
       time: Date,
       location: geoPoint,
+      address: String,
       deviceInfo: { platform: String, model: String },
     },
     workedMinutes: { type: Number, default: 0 },

@@ -1,10 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { api } from '@/api/client';
-import { Card, CardHeader, Button, Input, Select, Textarea, Modal, Table, Badge, Spinner } from '@/components/ui';
+import { Card, CardHeader, Button, Input, Select, Textarea, Modal, Table, Badge, Spinner, DatePicker } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 export default function StaffLeaves() {
+  const { user } = useAuth();
+  const dateFormat = user?.company?.settings?.dateFormat || 'BS';
   const [data, setData] = useState(null);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ type: 'PAID', fromDate: '', toDate: '', reason: '' });
@@ -58,7 +61,7 @@ export default function StaffLeaves() {
           renderRow={(l) => (
             <tr key={l._id}>
               <td className="table-td"><Badge color={l.type === 'PAID' ? 'blue' : l.type === 'SICK' ? 'yellow' : 'gray'}>{l.type}</Badge></td>
-              <td className="table-td text-sm">{formatDate(l.fromDate)} → {formatDate(l.toDate)}</td>
+              <td className="table-td text-sm">{formatDate(l.fromDate, dateFormat)} → {formatDate(l.toDate, dateFormat)}</td>
               <td className="table-td">{l.days}</td>
               <td className="table-td max-w-[180px] truncate text-xs text-slate-500">{l.reason || '—'}</td>
               <td className="table-td">
@@ -70,7 +73,7 @@ export default function StaffLeaves() {
           mobileRender={(l) => (
             <div key={l._id} className="p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">{formatDate(l.fromDate)} → {formatDate(l.toDate)}</p>
+                <p className="text-sm font-medium">{formatDate(l.fromDate, dateFormat)} → {formatDate(l.toDate, dateFormat)}</p>
                 <Badge color={l.status === 'APPROVED' ? 'green' : l.status === 'REJECTED' ? 'red' : 'yellow'}>{l.status}</Badge>
               </div>
               <div className="flex items-center gap-2">
@@ -94,8 +97,8 @@ export default function StaffLeaves() {
               { value: 'UNPAID', label: 'Unpaid Leave' },
             ]} />
           <div className="grid grid-cols-2 gap-4">
-            <Input label="From *" type="date" required value={form.fromDate} onChange={(e) => setForm({ ...form, fromDate: e.target.value })} />
-            <Input label="To *" type="date" required min={form.fromDate} value={form.toDate} onChange={(e) => setForm({ ...form, toDate: e.target.value })} />
+            <DatePicker label="From *" required value={form.fromDate} onChange={(val) => setForm({ ...form, fromDate: val })} />
+            <DatePicker label="To *" required value={form.toDate} onChange={(val) => setForm({ ...form, toDate: val })} />
           </div>
           <Textarea label="Reason" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
           <div className="flex justify-end gap-2">

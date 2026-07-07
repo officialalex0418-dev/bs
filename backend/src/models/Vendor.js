@@ -8,6 +8,7 @@ const vendorSchema = new mongoose.Schema(
     email: { type: String, lowercase: true, trim: true, match: [/^\S+@\S+\.\S+$/, 'Invalid email'] },
     address: { type: String, trim: true, maxlength: 300 },
     panVat: { type: String, trim: true, uppercase: true, maxlength: 30 },
+    registrationNumber: { type: String, trim: true, maxlength: 50 },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

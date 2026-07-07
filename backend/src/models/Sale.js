@@ -8,6 +8,7 @@ const saleSchema = new mongoose.Schema(
     productName: { type: String, required: true, trim: true, maxlength: 200 },
     quantity: { type: Number, required: true, min: 1 },
     amount: { type: Number, required: true, min: 0 },
+    customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
     customerName: { type: String, trim: true, maxlength: 150 },
     remarks: { type: String, maxlength: 500 },
     saleDate: { type: Date, default: Date.now },

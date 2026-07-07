@@ -1,4 +1,4 @@
-/**
+import { setServers } from "node:dns/promises"; setServers(["1.1.1.1", "8.8.8.8"]);/**
  * Seed script: creates super admin, demo packages, a demo company with owner,
  * manager and staff. Run: npm run seed
  */

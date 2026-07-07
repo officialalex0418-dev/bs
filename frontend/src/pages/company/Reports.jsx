@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FileSpreadsheet, FileText, MapPin, CalendarCheck, TrendingUp, Wallet } from 'lucide-react';
 import { api, downloadFile } from '@/api/client';
-import { Card, CardHeader, CardBody, Button, Select } from '@/components/ui';
+import { Card, CardHeader, CardBody, Button, Select, MonthPicker } from '@/components/ui';
 
 export default function Reports() {
   const [trackingPeriod, setTrackingPeriod] = useState('daily');
@@ -42,10 +42,7 @@ export default function Reports() {
         <Card>
           <CardHeader title="Attendance Report" subtitle="Check-ins, late days" action={<CalendarCheck className="h-5 w-5 text-primary-500" />} />
           <CardBody className="space-y-3">
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium">Month</span>
-              <input type="month" className="input" value={month} onChange={(e) => setMonth(e.target.value)} />
-            </label>
+            <MonthPicker label="Month" value={month} onChange={(val) => setMonth(val)} />
             <Button className="w-full" loading={busy === 'attendance'}
               onClick={() => dl('attendance', `/reports/attendance/excel?month=${month}`, `attendance-${month}.xlsx`)}>
               <FileSpreadsheet className="h-4 w-4" /> Download Excel
@@ -91,10 +88,7 @@ export default function Reports() {
         <Card>
           <CardHeader title="Payroll Report" subtitle="Salary slips per month" action={<Wallet className="h-5 w-5 text-primary-500" />} />
           <CardBody className="space-y-3">
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium">Month</span>
-              <input type="month" className="input" value={month} onChange={(e) => setMonth(e.target.value)} />
-            </label>
+            <MonthPicker label="Month" value={month} onChange={(val) => setMonth(val)} />
             <Button className="w-full" loading={busy === 'payroll'}
               onClick={() => dl('payroll', `/reports/payroll/excel?month=${month}`, `payroll-${month}.xlsx`)}>
               <FileSpreadsheet className="h-4 w-4" /> Download Excel

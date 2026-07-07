@@ -10,12 +10,17 @@ const FEATURES = [
   ['vendorManagement', 'Vendor Management'],
   ['payrollManagement', 'Payroll Management'],
   ['salesTracking', 'Sales Tracking'],
+  ['complaintChat', 'Complaint & Chat'],
 ];
 
 const emptyForm = {
   name: '', description: '', price: 0, maxStaff: 10, trackingIntervalMinutes: 60,
   status: 'ACTIVE',
-  features: { employeeTracking: true, inventoryManagement: false, vendorManagement: false, payrollManagement: false, salesTracking: false },
+  chatRetentionDays: 30,
+  features: {
+    employeeTracking: true, inventoryManagement: false, vendorManagement: false,
+    payrollManagement: false, salesTracking: false, complaintChat: false
+  },
 };
 
 export default function Packages() {
@@ -78,6 +83,7 @@ export default function Packages() {
             <div className="mt-3 space-y-1 text-sm text-slate-500">
               <p>👥 Up to <b>{p.maxStaff}</b> staff</p>
               <p>📍 Location ping every <b>{p.trackingIntervalMinutes} min</b></p>
+              <p>🕒 Chat retention: <b>{p.chatRetentionDays || 30} days</b></p>
             </div>
             <ul className="mt-4 flex-1 space-y-2 text-sm">
               {FEATURES.map(([key, label]) => (
@@ -109,6 +115,16 @@ export default function Packages() {
           <Select label="Tracking Interval" value={form.trackingIntervalMinutes}
             onChange={(e) => setForm({ ...form, trackingIntervalMinutes: e.target.value })}
             options={[{ value: 30, label: 'Every 30 minutes' }, { value: 60, label: 'Every 60 minutes' }, { value: 120, label: 'Every 120 minutes' }]} />
+
+          <Select label="Chat Retention (Message Disappearing)" value={form.chatRetentionDays}
+            onChange={(e) => setForm({ ...form, chatRetentionDays: Number(e.target.value) })}
+            options={[
+              { value: 30, label: '30 Days' },
+              { value: 90, label: '90 Days' },
+              { value: 180, label: '180 Days' },
+              { value: 365, label: '1 Year (365 Days)' }
+            ]} />
+
           <div className="sm:col-span-2">
             <Input label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>

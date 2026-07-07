@@ -105,6 +105,22 @@ export default function CompanySettings() {
                 <p className="mt-1 text-xs text-slate-500">Includes tracking, attendance, and basic reporting.</p>
               </div>
             </div>
+
+            <div className="space-y-4">
+              <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-400">
+                <Globe className="h-4 w-4" /> System Preferences
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs text-slate-400">Date Format</p>
+                  <p className="font-medium">{company.settings?.dateFormat === 'BS' ? 'BS (Nepali Date)' : 'AD (English Date)'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400">System Language</p>
+                  <p className="font-medium">{company.settings?.language || 'English'}</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {company.additionalInfo && (
