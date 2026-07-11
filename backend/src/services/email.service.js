@@ -45,10 +45,48 @@ function baseTemplate({ title, bodyHtml, ctaText, ctaUrl }) {
 }
 
 export async function sendEmail({ to, subject, title, bodyHtml, ctaText, ctaUrl }) {
+  const html = baseTemplate({ title: title || subject, bodyHtml, ctaText, ctaUrl });
+
+  // --- METHOD 1: SMTP (Prioritized for SMTP Protocol deployment) ---
+  if (env.smtp.user && env.smtp.pass) {
+    try {
+      if (!transporter) {
+        const isGmail = env.smtp.host?.includes('gmail.com') || env.smtp.user?.includes('gmail.com');
+
+        transporter = nodemailer.createTransport({
+          host: env.smtp.host,
+          port: env.smtp.port,
+          secure: env.smtp.secure, // true for 465, false for 587
+          auth: {
+            user: env.smtp.user,
+            pass: env.smtp.pass,
+          },
+          service: isGmail ? 'gmail' : undefined,
+          tls: {
+            rejectUnauthorized: false // Helps with various cloud hosting cert issues
+          }
+        });
+      }
+
+      const info = await transporter.sendMail({
+        from: env.smtp.from,
+        to,
+        subject,
+        html,
+      });
+
+      console.log(`📧 Email sent via SMTP: ${info.messageId}`);
+      return info;
+    } catch (e) {
+      console.error(`📧 SMTP failed:`, e.message);
+      // Continue to fallback if SMTP fails
+    }
+  }
+
+  // --- METHOD 2: RESEND API FALLBACK ---
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || 'onboarding@resend.dev';
 
-  // --- METHOD 1: RESEND API (HTTPS - Best for Render) ---
   if (RESEND_API_KEY) {
     try {
       const response = await fetch('https://api.resend.com/emails', {
@@ -61,47 +99,22 @@ export async function sendEmail({ to, subject, title, bodyHtml, ctaText, ctaUrl 
           from: from,
           to: [to],
           subject: subject,
-          html: baseTemplate({ title: title || subject, bodyHtml, ctaText, ctaUrl }),
+          html,
         })
       });
       const result = await response.json();
       if (!response.ok) {
-        console.error(`❌ Resend Sandbox Restriction: ${result.message}`);
-        console.log(`🔑 [BACKUP LOG] Email failed, but here is the info: Subject: ${subject}, To: ${to}, Content: ${bodyHtml}`);
-        return null; // Don't crash the app
+        console.error(`❌ Resend Error: ${result.message}`);
+        return null;
       }
+      console.log(`📧 Email sent via Resend API`);
       return result;
     } catch (e) {
-      console.error(`📧 Resend failed:`, e.message);
-      // Fallback to SMTP if Gmail keys are still there
+      console.error(`📧 Resend fallback failed:`, e.message);
     }
   }
 
-  // --- METHOD 2: SMTP FALLBACK (Port 587) ---
-  if (env.smtp.user && env.smtp.pass) {
-    try {
-      if (!transporter) {
-        transporter = nodemailer.createTransport({
-          service: env.smtp.user.includes('gmail') ? 'gmail' : undefined,
-          host: env.smtp.host,
-          port: env.smtp.port,
-          secure: env.smtp.secure,
-          auth: { user: env.smtp.user, pass: env.smtp.pass },
-        });
-      }
-      await transporter.sendMail({
-        from: env.smtp.from || env.smtp.user,
-        to,
-        subject,
-        html: baseTemplate({ title: title || subject, bodyHtml, ctaText, ctaUrl }),
-      });
-    } catch (e) {
-      console.error(`📧 SMTP fallback failed:`, e.message);
-      throw e;
-    }
-  } else {
-    console.warn(`📧 [email skipped] No API Key or SMTP credentials found.`);
-  }
+  console.warn(`📧 [email skipped] No SMTP credentials or API Key found.`);
 }
 
 export const emails = {
