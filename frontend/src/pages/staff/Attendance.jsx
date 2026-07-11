@@ -4,7 +4,7 @@ import { api } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { useAppPermissions } from '@/hooks/useAppPermissions';
 import { Card, CardHeader, CardBody, Button, Table, Badge, Spinner } from '@/components/ui';
-import { formatTime, formatDate } from '@/lib/utils';
+import { formatTime, formatDate, toNepaliMonth, toNepaliDate } from '@/lib/utils';
 
 async function getPosition() {
   return new Promise((resolve, reject) => {
@@ -189,7 +189,9 @@ export default function StaffAttendance() {
           <Card className="bg-primary-600 text-white border-0 shadow-lg shadow-primary-200 dark:shadow-none">
             <CardBody className="p-6">
               <Calendar className="h-8 w-8 mb-4 opacity-50" />
-              <p className="text-xs uppercase font-bold tracking-widest opacity-80">This Month</p>
+              <p className="text-xs uppercase font-bold tracking-widest opacity-80">
+                {dateFormat === 'BS' ? toNepaliMonth(data.summary.month) : 'This Month'}
+              </p>
               <h3 className="text-3xl font-bold mt-1">{data.summary.presentDays} <span className="text-sm font-normal opacity-80">Days</span></h3>
               <p className="text-xs mt-4 font-medium opacity-90">Present Days Record</p>
             </CardBody>
@@ -197,7 +199,9 @@ export default function StaffAttendance() {
 
           <Card className={today?.checkIn?.isLate ? 'bg-red-50 border-red-100' : 'bg-slate-50'}>
             <CardBody className="p-6 flex flex-col justify-center text-center">
-              <p className="text-xs uppercase font-bold tracking-widest text-slate-400">Monthly Lates</p>
+              <p className="text-xs uppercase font-bold tracking-widest text-slate-400">
+                {dateFormat === 'BS' ? `${toNepaliMonth(data.summary.month)} Lates` : 'Monthly Lates'}
+              </p>
               <h3 className={`text-3xl font-bold mt-1 ${data.summary.lateDays > 0 ? 'text-red-600' : 'text-slate-600'}`}>
                 {data.summary.lateDays}
               </h3>
@@ -209,7 +213,7 @@ export default function StaffAttendance() {
       <Card>
         <CardHeader
           title="Attendance History"
-          subtitle={`Month: ${data.summary.month}`}
+          subtitle={`Month: ${dateFormat === 'BS' ? toNepaliMonth(data.summary.month) : data.summary.month}`}
           action={<Button variant="ghost" size="sm" onClick={load}>Refresh Logs</Button>}
         />
         <Table

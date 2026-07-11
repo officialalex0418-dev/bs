@@ -31,7 +31,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = useCallback(async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
+    let deviceId = localStorage.getItem('bs_device_id');
+    if (!deviceId) {
+      deviceId = `WEB-${Math.random().toString(36).substring(2, 15)}`;
+      localStorage.setItem('bs_device_id', deviceId);
+    }
+
+    const { data } = await api.post('/auth/login', { email, password, deviceId });
     setAccessToken(data.data.accessToken);
     localStorage.setItem('bs_refresh', data.data.refreshToken);
     setUser(data.data.user);

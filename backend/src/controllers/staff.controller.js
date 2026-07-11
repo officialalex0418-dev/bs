@@ -31,7 +31,13 @@ export const listStaff = asyncHandler(async (req, res) => {
   }
 
   const [items, total] = await Promise.all([
-    User.find(filter).populate('company', 'name').populate('designation').sort('-createdAt').skip(skip).limit(limit),
+    User.find(filter)
+      .populate('company', 'name')
+      .populate('designation')
+      .populate('branch', 'name')
+      .sort('-createdAt')
+      .skip(skip)
+      .limit(limit),
     User.countDocuments(filter),
   ]);
   res.json({ success: true, data: paginatedResponse(items.map((u) => u.toSafeJSON()), total, page, limit) });
@@ -41,7 +47,7 @@ export const listStaff = asyncHandler(async (req, res) => {
 export const createStaff = asyncHandler(async (req, res) => {
   const {
     name, email, phone, address, pan, position,
-    basicSalary, dailyAllowance, allowances, role, designation, companyId, monthlyTarget, workMode, branch,
+    basicSalary, dailyAllowance, allowances, role, designation, shift, companyId, monthlyTarget, workMode, branch,
   } = req.body;
 
   if (await User.findOne({ email })) throw ApiError.conflict('Email already in use');
@@ -94,6 +100,7 @@ export const createStaff = asyncHandler(async (req, res) => {
     basicSalary: finalSalary, dailyAllowance: finalAllowance, allowances: finalAllowances, monthlyTarget,
     role: targetRole,
     designation: designation || null,
+    shift: shift || null,
     company: targetCompany,
     workMode: workMode || 'OUTDOOR',
     branch: branch || null,
@@ -127,7 +134,7 @@ export const updateStaff = asyncHandler(async (req, res) => {
   assertSameCompanyOrPlatform(req, user);
 
   const allowed = ['name', 'phone', 'address', 'pan', 'position', 'basicSalary',
-    'dailyAllowance', 'monthlyTarget', 'isActive', 'subRole', 'designation', 'profilePhoto', 'leaveBalance', 'role'];
+    'dailyAllowance', 'allowances', 'monthlyTarget', 'isActive', 'subRole', 'designation', 'shift', 'profilePhoto', 'leaveBalance', 'role', 'workMode', 'branch'];
 
   let targetRole = req.body.role;
   if (req.body.designation) {
@@ -203,6 +210,22 @@ export const hardDeleteStaff = asyncHandler(async (req, res) => {
 
   audit({ req, action: 'HARD_DELETE_STAFF', entity: 'User', entityId: user._id, meta: { name: user.name, email: user.email } });
   res.json({ success: true, message: 'User and all associated data permanently deleted' });
+});
+
+/** PATCH /staff/:id/authorize-device-reset */
+export const authorizeDeviceReset = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) throw ApiError.notFound('Staff not found');
+  assertSameCompanyOrPlatform(req, user);
+
+  user.isDeviceResetAuthorized = true;
+  user.deviceResetRequested = false;
+  // We don't clear primaryDeviceId yet, the next login will overwrite it.
+
+  await user.save({ validateBeforeSave: false });
+
+  audit({ req, action: 'AUTHORIZE_DEVICE_RESET', entity: 'User', entityId: user._id });
+  res.json({ success: true, message: `Device reset authorized for ${user.name}. They can now login from a new device.` });
 });
 
 function assertSameCompanyOrPlatform(req, target) {

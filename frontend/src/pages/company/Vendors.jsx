@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Pencil, Trash2, Truck } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Pencil, Trash2, Truck, History } from 'lucide-react';
 import { api } from '@/api/client';
-import { Card, Button, Input, Modal, Table, Spinner, Pagination, EmptyState } from '@/components/ui';
+import { Card, Button, Input, Modal, Table, Spinner, Pagination, EmptyState, Badge } from '@/components/ui';
+import { formatMoney } from '@/lib/utils';
 
 const emptyForm = { name: '', phone: '', email: '', address: '', panVat: '' };
 
@@ -66,17 +68,25 @@ export default function Vendors() {
             onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="max-w-xs" />
         </div>
         <Table
-          columns={['Vendor', 'Phone', 'Email', 'Address', 'PAN/VAT', 'Actions']}
+          columns={['Vendor', 'Contact', 'Address', 'PAN/VAT', 'Payable Balance', 'Actions']}
           data={data.items}
           renderRow={(v) => (
-            <tr key={v._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
-              <td className="table-td font-medium">{v.name}</td>
-              <td className="table-td">{v.phone || '—'}</td>
-              <td className="table-td">{v.email || '—'}</td>
-              <td className="table-td">{v.address || '—'}</td>
-              <td className="table-td">{v.panVat || '—'}</td>
+            <tr key={v._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 text-sm">
+              <td className="table-td font-medium text-primary-600">
+                <Link to={`${v._id}`} className="hover:underline">{v.name}</Link>
+              </td>
+              <td className="table-td text-xs">
+                <p>{v.phone || '—'}</p>
+                <p className="text-slate-400">{v.email || ''}</p>
+              </td>
+              <td className="table-td text-xs truncate max-w-[150px]">{v.address || '—'}</td>
+              <td className="table-td text-xs">{v.panVat || '—'}</td>
+              <td className="table-td font-bold text-red-600">{formatMoney(v.outstandingBalance)}</td>
               <td className="table-td">
                 <div className="flex gap-1">
+                  <Link to={`${v._id}`} title="Ledger & Details" className="rounded p-1.5 text-slate-600 hover:bg-slate-100">
+                    <History className="h-4 w-4" />
+                  </Link>
                   <button className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800"
                     onClick={() => { setEditing(v); setForm({ ...emptyForm, ...v }); setModal(true); }}>
                     <Pencil className="h-4 w-4" />
@@ -89,24 +99,26 @@ export default function Vendors() {
             </tr>
           )}
           mobileRender={(v) => (
-            <div key={v._id} className="p-4 space-y-2">
+            <div key={v._id} className="p-4 space-y-3 border-b dark:border-slate-800">
               <div className="flex items-center justify-between">
-                <p className="font-semibold">{v.name}</p>
-                <div className="flex gap-1">
-                  <button className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    onClick={() => { setEditing(v); setForm({ ...emptyForm, ...v }); setModal(true); }}>
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button className="rounded p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30" onClick={() => remove(v)}>
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+                <Link to={`${v._id}`} className="font-bold text-primary-600 hover:underline">{v.name}</Link>
+                <Badge color="red" className="font-bold">{formatMoney(v.outstandingBalance)}</Badge>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-sm text-slate-600">
+              <div className="flex justify-between text-xs text-slate-600">
                 <p>{v.phone || 'No phone'}</p>
-                <p className="text-right truncate">{v.email || 'No email'}</p>
+                <p className="truncate max-w-[150px]">{v.address || 'No address'}</p>
               </div>
-              <p className="text-xs text-slate-400 truncate">{v.address || 'No address'}</p>
+              <div className="grid grid-cols-3 gap-2 pt-1">
+                  <Link to={`${v._id}`} className="btn-outline px-2.5 py-1.5 text-xs flex items-center justify-center rounded-md border border-slate-200">
+                    <History className="h-3.5 w-3.5" />
+                  </Link>
+                  <Button variant="outline" size="sm" onClick={() => { setEditing(v); setForm({ ...emptyForm, ...v }); setModal(true); }}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="danger" size="sm" onClick={() => remove(v)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+              </div>
             </div>
           )}
         />

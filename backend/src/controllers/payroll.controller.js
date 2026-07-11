@@ -8,6 +8,7 @@ import { audit } from '../utils/audit.js';
 import { emails } from '../services/email.service.js';
 import { notify } from '../services/notification.service.js';
 import { monthStr } from '../utils/dates.js';
+import { getBsMonthRange, bsMapping } from '../utils/nepaliDate.js';
 
 function getPayrollTotals(payroll) {
   const deductions = payroll.deductions || {};
@@ -37,44 +38,75 @@ function buildPayrollDetail(payroll) {
  */
 export const generatePayroll = asyncHandler(async (req, res) => {
   const month = req.body.month || monthStr();
+
   const isSystemScope = req.body.scope === 'system' &&
     ['SUPER_ADMIN', 'ADMIN_EMPLOYEE'].includes(req.user.role);
 
   let staffFilter;
   let company = null;
+  let dateFilter = { $regex: `^${month}` };
+  let totalWorkingDays = 0;
+
   if (isSystemScope) {
     staffFilter = { role: 'ADMIN_EMPLOYEE', isActive: true };
+    totalWorkingDays = getWorkingDays(month);
+    if (month > monthStr()) throw ApiError.badRequest('Cannot generate payroll for future months');
   } else {
     const companyId = req.companyId;
     if (!companyId) throw ApiError.badRequest('companyId required');
     company = await Company.findById(companyId);
     if (!company) throw ApiError.notFound('Company not found');
     staffFilter = { company: companyId, role: { $in: ['STAFF', 'COMPANY_MANAGER'] }, isActive: true };
+
+    if (company.settings?.dateFormat === 'BS') {
+      const { start, end } = getBsMonthRange(month);
+      dateFilter = { $gte: start.toISOString().slice(0, 10), $lte: end.toISOString().slice(0, 10) };
+
+      if (start > new Date()) throw ApiError.badRequest('Cannot generate payroll for future months');
+
+      // Calculate working days for BS month (Nepal: Sat off)
+      const [by, bm] = month.split('-').map(Number);
+      const daysInBsMonth = bsMapping[by][bm - 1];
+      totalWorkingDays = 0;
+      for (let d = 1; d <= daysInBsMonth; d++) {
+        const adDate = bsToAdInside(`${by}-${bm}-${d}`);
+        if (adDate.getUTCDay() !== 6) totalWorkingDays++;
+      }
+    } else {
+      if (month > monthStr()) throw ApiError.badRequest('Cannot generate payroll for future months');
+      totalWorkingDays = getWorkingDays(month);
+    }
   }
 
   const staffList = await User.find(staffFilter);
   if (!staffList.length) throw ApiError.badRequest('No active staff to generate payroll for');
 
-  const workingDays = getWorkingDays(month);
   const results = [];
 
   for (const staff of staffList) {
     const exists = await Payroll.findOne({ staff: staff._id, month });
     if (exists) { results.push({ staff: staff.name, skipped: true }); continue; }
 
-    const presentDays = company
-      ? await Attendance.countDocuments({
+    const attendanceRecords = company
+      ? await Attendance.find({
           staff: staff._id,
-          date: { $regex: `^${month}` },
+          date: dateFilter,
           status: { $in: ['PRESENT', 'HALF_DAY'] },
         })
-      : workingDays; // system employees assumed full attendance
+      : [];
 
-    const perDay = staff.basicSalary / workingDays || 0;
-    const absentDays = Math.max(workingDays - presentDays, 0);
+    const presentDays = company
+      ? attendanceRecords.reduce((acc, curr) => acc + (curr.status === 'HALF_DAY' ? 0.5 : 1), 0)
+      : totalWorkingDays;
+
+    const perDay = staff.basicSalary / totalWorkingDays || 0;
+    const absentDays = Math.max(totalWorkingDays - presentDays, 0);
     const absentDeduction = Math.round(perDay * absentDays);
-    const allowance = Math.round((staff.dailyAllowance || 0) * presentDays);
-    const tax = Math.round(staff.basicSalary * 0.01); // 1% SST placeholder
+
+    // Using monthly fixed allowances instead of per-day allowance
+    const allowance = Number(staff.allowances || 0);
+
+    const tax = Math.round(staff.basicSalary * 0.01); // 1% Social Security Tax
     const netSalary = Math.max(Math.round(staff.basicSalary + allowance - absentDeduction - tax), 0);
 
     const payroll = await Payroll.create({
@@ -84,7 +116,7 @@ export const generatePayroll = asyncHandler(async (req, res) => {
       basicSalary: staff.basicSalary,
       allowance,
       deductions: { absent: absentDeduction, tax, other: 0 },
-      presentDays, workingDays, netSalary,
+      presentDays, workingDays: totalWorkingDays, netSalary,
       generatedBy: req.user._id,
     });
 
@@ -110,7 +142,11 @@ export const listPayroll = asyncHandler(async (req, res) => {
   if (req.companyId) filter.company = req.companyId;
   else if (req.query.scope === 'system') filter.company = null;
   if (req.query.month) filter.month = req.query.month;
-  if (req.user.role === 'STAFF') filter.staff = req.user._id;
+
+  // Staff can only see their own payroll unless they have managerial payroll permission
+  if (req.user.role === 'STAFF' && !req.user.designation?.permissions?.payroll) {
+    filter.staff = req.user._id;
+  }
 
   const [items, total] = await Promise.all([
     Payroll.find(filter).populate('staff', 'name position email')
@@ -129,7 +165,11 @@ export const getPayroll = asyncHandler(async (req, res) => {
   if (req.companyId && payroll.company?.toString() !== req.companyId.toString()) {
     throw ApiError.forbidden('Payroll outside your company');
   }
-  if (req.user.role === 'STAFF' && payroll.staff?._id?.toString() !== req.user._id.toString()) {
+
+  // Staff can only see their own payroll slip unless they have managerial payroll permission
+  if (req.user.role === 'STAFF' &&
+      payroll.staff?._id?.toString() !== req.user._id.toString() &&
+      !req.user.designation?.permissions?.payroll) {
     throw ApiError.forbidden('Payroll outside your access');
   }
   res.json({ success: true, data: { payroll: buildPayrollDetail(payroll.toObject()) } });
@@ -209,4 +249,19 @@ function getWorkingDays(month) {
     if (day !== 6) working++; // Saturday off (Nepal)
   }
   return working;
+}
+
+function bsToAdInside(bsDateStr) {
+  const [year, month, day] = bsDateStr.split('-').map(Number);
+  let totalDays = 0;
+  for (let y = 2070; y < year; y++) {
+    totalDays += bsMapping[y].reduce((a, b) => a + b, 0);
+  }
+  for (let m = 0; m < month - 1; m++) {
+    totalDays += bsMapping[year][m];
+  }
+  totalDays += day - 1;
+  const adReference = new Date(Date.UTC(2013, 3, 14));
+  adReference.setUTCDate(adReference.getUTCDate() + totalDays);
+  return adReference;
 }

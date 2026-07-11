@@ -9,8 +9,8 @@ import { formatMoney } from '@/lib/utils';
 
 const emptyForm = {
   name: '', email: '', phone: '', address: '', pan: '', position: '',
-  basicSalary: 0, dailyAllowance: 0, allowances: 0, monthlyTarget: 0, role: 'STAFF', designation: '',
-  workMode: 'OUTDOOR', branch: '',
+  basicSalary: 0, allowances: 0, monthlyTarget: 0, role: 'STAFF', designation: '',
+  workMode: 'OUTDOOR', branch: '', shift: '',
 };
 
 export default function StaffManager({ mode = 'company', companyId = null, allowCompanySelection = false }) {
@@ -18,6 +18,7 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
   const [companies, setCompanies] = useState([]);
   const [designations, setDesignations] = useState([]);
   const [branches, setBranches] = useState([]);
+  const [shifts, setShifts] = useState([]);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(false);
@@ -35,6 +36,7 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
     if (mode === 'company') {
       api.get('/company-config/designations').then(({ data }) => setDesignations(data.data)).catch(() => {});
       api.get('/company-config/branches').then(({ data }) => setBranches(data.data)).catch(() => {});
+      api.get('/company-config/shifts').then(({ data }) => setShifts(data.data)).catch(() => {});
     }
     if (mode === 'system') {
       api.get('/designations').then(res => setDesignations(res.data.data));
@@ -69,11 +71,11 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
       const body = {
         ...form,
         basicSalary: mode === 'system' ? 0 : Number(form.basicSalary),
-        dailyAllowance: mode === 'system' ? 0 : Number(form.dailyAllowance),
         allowances: mode === 'system' ? 0 : Number(form.allowances),
         monthlyTarget: Number(form.monthlyTarget),
         role: mode === 'system' ? 'ADMIN_EMPLOYEE' : form.role,
         designation: form.designation || undefined,
+        shift: form.shift || undefined,
         companyId: mode === 'company' ? (companyId || selectedCompanyId || undefined) : undefined,
         workMode: form.workMode,
         branch: form.workMode === 'INDOOR' ? (form.branch || null) : null,
@@ -148,7 +150,14 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
                   </div>
                   <div>
                     <p className="font-medium">{u.name}</p>
-                    <p className="text-[10px] uppercase font-bold text-primary-600">{u.workMode}</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-[9px] uppercase font-bold text-primary-600 bg-primary-50 px-1 rounded">{u.workMode}</p>
+                      {u.workMode === 'INDOOR' && (
+                        <p className="text-[9px] text-slate-500 italic">
+                           ({u.branch?.name || 'Main Office'})
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </td>
@@ -172,7 +181,7 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
               <td className="table-td">
                 <div className="flex gap-1">
                   <button className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800" title="Edit"
-                    onClick={() => { setEditing(u); setForm({ ...emptyForm, ...u, designation: u.designation?._id || '', branch: u.branch || '' }); setModal(true); }}>
+                    onClick={() => { setEditing(u); setForm({ ...emptyForm, ...u, designation: u.designation?._id || '', branch: u.branch || '', shift: u.shift || '' }); setModal(true); }}>
                     <Pencil className="h-4 w-4" />
                   </button>
                   {mode === 'company' && (
@@ -202,7 +211,14 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
                   </div>
                   <div>
                     <p className="font-semibold">{u.name}</p>
-                    <p className="text-[10px] uppercase font-bold text-primary-600">{u.workMode}</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-[9px] uppercase font-bold text-primary-600">{u.workMode}</p>
+                      {u.workMode === 'INDOOR' && (
+                        <p className="text-[9px] text-slate-500 italic">
+                           ({u.branch?.name || 'Main Office'})
+                        </p>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-500">{u.designation?.name || u.position || 'No Designation'}</p>
                   </div>
                 </div>
@@ -228,7 +244,7 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
                 )}
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <Button variant="outline" size="sm" onClick={() => { setEditing(u); setForm({ ...emptyForm, ...u, designation: u.designation?._id || '', branch: u.branch || '' }); setModal(true); }}>
+                <Button variant="outline" size="sm" onClick={() => { setEditing(u); setForm({ ...emptyForm, ...u, designation: u.designation?._id || '', branch: u.branch || '', shift: u.shift || '' }); setModal(true); }}>
                   <Pencil className="h-4 w-4 mr-1" /> Edit
                 </Button>
                 <Button variant="outline" size="sm" className="text-amber-600" onClick={() => deactivate(u)}>
@@ -252,7 +268,6 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
           <Input label="Email *" type="email" required disabled={!!editing} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Input label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           <Input label="PAN" value={form.pan} onChange={(e) => setForm({ ...form, pan: e.target.value })} />
-          <Input label="Position" value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} />
 
           <Select label="Designation *" required value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })}
             options={[
@@ -263,16 +278,22 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
               }))
             ]} />
 
-          <Input label="Basic Salary" type="number" min="0" value={form.basicSalary} onChange={(e) => setForm({ ...form, basicSalary: e.target.value })} />
-          <Input label="Allowances" type="number" min="0" value={form.allowances} onChange={(e) => setForm({ ...form, allowances: e.target.value })} />
-
           <Select label="Work Mode" value={form.workMode} onChange={(e) => setForm({ ...form, workMode: e.target.value })}
             options={[{ value: 'INDOOR', label: 'Indoor (Office Radius)' }, { value: 'OUTDOOR', label: 'Outdoor (Anywhere)' }]} />
 
           {form.workMode === 'INDOOR' && (
-            <Select label="Linked Branch" value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })}
+            <Select label="Linked Office / Branch *" required value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })}
               options={[{ value: '', label: 'Main Office (Company Location)' }, ...branches.map(b => ({ value: b._id, label: b.name }))]} />
           )}
+
+          <Select label="Shift" value={form.shift} onChange={(e) => setForm({ ...form, shift: e.target.value })}
+            options={[
+              { value: '', label: 'No Specific Shift' },
+              ...shifts.map(s => ({ value: s._id, label: `${s.name} (${s.startTime} - ${s.endTime})` }))
+            ]} />
+
+          <Input label="Basic Salary" type="number" min="0" value={form.basicSalary} onChange={(e) => setForm({ ...form, basicSalary: e.target.value })} />
+          <Input label="Allowances" type="number" min="0" value={form.allowances} onChange={(e) => setForm({ ...form, allowances: e.target.value })} />
 
           {mode === 'company' && (
             <Input label="Monthly Sales Target" type="number" min="0" value={form.monthlyTarget} onChange={(e) => setForm({ ...form, monthlyTarget: e.target.value })} />

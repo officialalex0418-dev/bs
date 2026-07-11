@@ -44,6 +44,18 @@ inventorySchema.index({ company: 1, category: 1 });
 inventorySchema.virtual('isLowStock').get(function () {
   return this.quantity <= this.reorderLevel;
 });
+
+inventorySchema.virtual('isNearExpiry').get(function () {
+  if (!this.expiryDate) return false;
+  const thirtyDaysFromNow = new Date();
+  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+  return this.expiryDate <= thirtyDaysFromNow && this.expiryDate >= new Date();
+});
+
+inventorySchema.virtual('isExpired').get(function () {
+  if (!this.expiryDate) return false;
+  return this.expiryDate < new Date();
+});
 inventorySchema.set('toJSON', { virtuals: true });
 
 export default mongoose.model('Inventory', inventorySchema);

@@ -15,6 +15,8 @@ export { default as SalesInvoice } from './SalesInvoice.js';
 export { default as Purchase } from './Purchase.js';
 export { default as Inventory } from './Inventory.js';
 export { default as Distributor } from './Distributor.js';
+export { default as Vendor } from './Vendor.js';
+export { default as VendorPayment } from './VendorPayment.js';
 export { default as Customer } from './Customer.js';
 export { default as Invoice } from './Invoice.js';
 export { default as Payment } from './Payment.js';

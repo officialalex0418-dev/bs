@@ -34,6 +34,8 @@ import LiveTracking from '@/pages/company/LiveTracking';
 import InventoryPage from '@/pages/company/Inventory';
 import Distributors from '@/pages/company/Distributors';
 import DistributorDetails from '@/pages/company/DistributorDetails';
+import Vendors from '@/pages/company/Vendors';
+import VendorDetails from '@/pages/company/VendorDetails';
 import CompanyPayroll from '@/pages/company/Payroll';
 import SalesTracker from '@/pages/company/SalesTracker';
 import Reports from '@/pages/company/Reports';
@@ -48,7 +50,7 @@ import CompanyShifts from '@/pages/company/Shifts';
 import CompanyDepartments from '@/pages/company/Departments';
 import CompanyLeavesConfig from '@/pages/company/LeavesConfig';
 import HolidayCalendar from '@/pages/company/HolidayCalendar';
-import Complaints from '@/pages/shared/Complaints';
+import Chat from '@/pages/shared/Complaints';
 
 // Staff
 import StaffDashboard from '@/pages/staff/Dashboard';
@@ -94,8 +96,9 @@ const companyNav = [
   { to: '/company/sales', label: 'Sales Tracker', icon: TrendingUp },
   { to: '/company/inventory', label: 'Inventory', icon: Boxes },
   { to: '/company/distributors', label: 'Distributors', icon: Truck },
+  { to: '/company/vendors', label: 'Vendors', icon: Building2 },
   { to: '/company/payroll', label: 'Payroll Management', icon: Wallet },
-  { to: '/company/complaints', label: 'Complaints', icon: MessageSquare },
+  { to: '/company/complaints', label: 'Chat', icon: MessageSquare },
   { to: '/company/reports', label: 'Reports', icon: FileText },
   { to: '/company/configuration', label: 'Configuration', icon: Settings },
   { to: '/company/settings', label: 'Settings', icon: Settings },
@@ -108,7 +111,7 @@ const staffNavBase = [
   { to: '/staff/customers', label: 'Customers', icon: Users },
   { to: '/staff/sales', label: 'Sales Entry', icon: TrendingUp },
   { to: '/staff/payroll', label: 'My Payroll', icon: Wallet },
-  { to: '/staff/complaints', label: 'Complaints', icon: MessageSquare },
+  { to: '/staff/complaints', label: 'Chat', icon: MessageSquare },
   { to: '/staff/profile', label: 'Profile', icon: User },
 ];
 
@@ -142,6 +145,7 @@ export default function App() {
     if (item.to === '/company/sales' && !hasFeature('salesTracking')) return false;
     if (item.to === '/company/inventory' && !hasFeature('inventoryManagement')) return false;
     if (item.to === '/company/distributors' && !hasFeature('vendorManagement')) return false;
+    if (item.to === '/company/vendors' && !hasFeature('vendorManagement')) return false;
     if (item.to === '/company/payroll' && !hasFeature('payrollManagement')) return false;
 
     if (user?.designation?.permissions) {
@@ -153,6 +157,7 @@ export default function App() {
       if (item.to === '/company/sales') return perms.salesTracker;
       if (item.to === '/company/inventory') return perms.inventory;
       if (item.to === '/company/distributors') return perms.distributors;
+      if (item.to === '/company/vendors') return perms.distributors; // uses same permission
       if (item.to === '/company/payroll') return perms.payroll;
       if (item.to === '/company/complaints') return perms.complaints;
       if (item.to === '/company/reports') return perms.reports;
@@ -162,21 +167,8 @@ export default function App() {
     return user?.role === 'COMPANY_MANAGER';
   });
 
-  const finalStaffNav = staffNavBase.filter(item => {
-    if (item.to === '/staff/complaints' && !hasFeature('complaintChat')) return false;
-    if (item.to === '/staff/customers' && !hasFeature('salesTracking')) return false;
-    if (item.to === '/staff/sales') {
-      if (!hasFeature('salesTracking')) return false;
-      // Point 2: Sales Entry available to Sales/Marketing departments if allowed by package
-      const dept = (user?.designation?.department?.name || '').toLowerCase();
-      if (!dept.includes('sales') && !dept.includes('marketing')) return false;
-    }
+  const finalStaffNav = [...staffNavBase];
 
-    // Dashboard, Attendance, Leaves, My Payroll, and Profile are mandatory
-    return true;
-  });
-
-  // Point 1: Administrative tools appear for ANY staff/manager with explicit permissions
   if (user?.role === 'STAFF' || user?.role === 'COMPANY_MANAGER' || user?.role === 'COMPANY_OWNER') {
     const perms = user?.designation?.permissions;
     if (perms) {
@@ -186,12 +178,26 @@ export default function App() {
       if (perms.leaves) finalStaffNav.push({ to: '/staff/management/leaves', label: 'Leave Mgmt', icon: CalendarOff });
       if (perms.salesTracker && hasFeature('salesTracking')) finalStaffNav.push({ to: '/staff/management/sales', label: 'Sales Mgmt', icon: TrendingUp });
       if (perms.inventory && hasFeature('inventoryManagement')) finalStaffNav.push({ to: '/staff/management/inventory', label: 'Inventory', icon: Boxes });
-      if (perms.distributors && hasFeature('vendorManagement')) finalStaffNav.push({ to: '/staff/management/distributors', label: 'Distributors', icon: Truck });
+      if (perms.distributors && hasFeature('vendorManagement')) {
+         finalStaffNav.push({ to: '/staff/management/distributors', label: 'Distributors', icon: Truck });
+         finalStaffNav.push({ to: '/staff/management/vendors', label: 'Vendors', icon: Building2 });
+      }
       if (perms.payroll && hasFeature('payrollManagement')) finalStaffNav.push({ to: '/staff/management/payroll', label: 'Payroll', icon: Wallet });
       if (perms.reports) finalStaffNav.push({ to: '/staff/management/reports', label: 'Reports', icon: FileText });
       if (perms.configuration) finalStaffNav.push({ to: '/staff/management/configuration', label: 'Config', icon: Settings });
     }
   }
+
+  const finalFilteredStaffNav = finalStaffNav.filter(item => {
+    if (item.to === '/staff/complaints' && !hasFeature('complaintChat')) return false;
+    if (item.to === '/staff/customers' && !hasFeature('salesTracking')) return false;
+    if (item.to === '/staff/sales') {
+      if (!hasFeature('salesTracking')) return false;
+      const dept = (user?.designation?.department?.name || '').toLowerCase();
+      if (!dept.includes('sales') && !dept.includes('marketing')) return false;
+    }
+    return true;
+  });
 
   useEffect(() => {
     const initPermissions = async () => {
@@ -249,8 +255,10 @@ export default function App() {
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="distributors" element={<Distributors />} />
         <Route path="distributors/:id" element={<DistributorDetails />} />
+        <Route path="vendors" element={<Vendors />} />
+        <Route path="vendors/:id" element={<VendorDetails />} />
         <Route path="payroll" element={<CompanyPayroll />} />
-        <Route path="complaints" element={hasFeature('complaintChat') ? <Complaints /> : <Navigate to="/company" />} />
+        <Route path="complaints" element={hasFeature('complaintChat') ? <Chat /> : <Navigate to="/company" />} />
         <Route path="reports" element={<Reports />} />
         <Route path="configuration" element={<CompanyConfiguration />} />
         <Route path="configuration/designations" element={<CompanyDesignations />} />
@@ -267,7 +275,7 @@ export default function App() {
         path="/staff"
         element={
           <Protected roles={['STAFF', 'COMPANY_MANAGER']}>
-            <DashboardLayout title="Staff App" nav={finalStaffNav} />
+            <DashboardLayout title="Staff App" nav={finalFilteredStaffNav} />
           </Protected>
         }
       >
@@ -277,7 +285,7 @@ export default function App() {
         <Route path="customers" element={<StaffCustomers />} />
         <Route path="sales" element={<StaffSales />} />
         <Route path="payroll" element={<StaffPayroll />} />
-        <Route path="complaints" element={hasFeature('complaintChat') ? <Complaints /> : <Navigate to="/staff" />} />
+        <Route path="complaints" element={hasFeature('complaintChat') ? <Chat /> : <Navigate to="/staff" />} />
         <Route path="profile" element={<StaffProfile />} />
         <Route path="profile/edit" element={<EditProfile />} />
 
@@ -289,6 +297,8 @@ export default function App() {
         <Route path="management/inventory" element={<InventoryPage />} />
         <Route path="management/distributors" element={<Distributors />} />
         <Route path="management/distributors/:id" element={<DistributorDetails />} />
+        <Route path="management/vendors" element={<Vendors />} />
+        <Route path="management/vendors/:id" element={<VendorDetails />} />
         <Route path="management/payroll" element={<CompanyPayroll />} />
         <Route path="management/reports" element={<Reports />} />
         <Route path="management/configuration" element={<CompanyConfiguration />} />

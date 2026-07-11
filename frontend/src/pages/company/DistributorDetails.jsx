@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, CreditCard, Receipt, History, AlertCircle, Pencil, Save, X, Phone, MapPin, Hash, Trash2, Plus, User, Printer, Download, Eye, FileText, ShoppingCart } from 'lucide-react';
 import { api } from '@/api/client';
 import { Card, Button, Input, Modal, Table, Spinner, Badge, Select, Textarea, DatePicker, Checkbox } from '@/components/ui';
-import { formatMoney, formatDate } from '@/lib/utils';
+import { formatMoney, formatDate, toLocalDateString } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { InvoicePreview } from '@/components/InvoicePreview';
 
@@ -841,7 +841,11 @@ export default function DistributorDetails() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border">
             <div className="space-y-4">
                <Input label="Customer Name" value={editingInvoice?.customerName || ''} onChange={e => setEditingInvoice({...editingInvoice, customerName: e.target.value})} />
-               <DatePicker label="Due Date" value={editingInvoice?.dueDate ? new Date(editingInvoice.dueDate).toISOString().split('T')[0] : ''} onChange={(val) => setEditingInvoice({...editingInvoice, dueDate: val})} />
+               <DatePicker
+                 label="Due Date"
+                 value={editingInvoice?.dueDate ? (typeof editingInvoice.dueDate === 'string' ? editingInvoice.dueDate.split('T')[0] : editingInvoice.dueDate) : ''}
+                 onChange={(val) => setEditingInvoice({...editingInvoice, dueDate: val})}
+               />
             </div>
 
             <div className="bg-white dark:bg-slate-800 p-3 rounded-lg border">

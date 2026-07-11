@@ -1,5 +1,18 @@
-export const todayStr = (d = new Date()) => d.toISOString().slice(0, 10); // YYYY-MM-DD
-export const monthStr = (d = new Date()) => d.toISOString().slice(0, 7); // YYYY-MM
+/**
+ * Corrected date string utilities for Nepal (+5:45)
+ */
+export const todayStr = (d = new Date()) => {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kathmandu',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(d); // Returns YYYY-MM-DD reliably
+};
+
+export const monthStr = (d = new Date()) => {
+  return todayStr(d).slice(0, 7); // Returns YYYY-MM
+};
 
 export function rangeFromPeriod(period) {
   const now = new Date();

@@ -8,6 +8,7 @@ export const cn = (...inputs) => twMerge(clsx(inputs));
  * AD to BS Conversion
  */
 export const toNepaliDate = (date) => {
+  if (!date) return '—';
   if (typeof date === 'string' && date.length === 7) {
      // Handle YYYY-MM
      const [y, m] = date.split('-').map(Number);
@@ -18,22 +19,58 @@ export const toNepaliDate = (date) => {
   return bs ? bs.formatted : '—';
 };
 
+export const toNepaliMonth = (dateStr) => {
+  if (!dateStr || dateStr.length !== 7) return dateStr;
+  const [y, m] = dateStr.split('-').map(Number);
+  // We assume the input string is already a BS YYYY-MM if it's coming from BS format logic
+  // But usually summary.month is AD YYYY-MM from backend.
+  const bs = adToBs(new Date(y, m - 1, 1));
+  return bs ? `${bs.monthName} ${bs.year}` : dateStr;
+};
+
 export const formatMoney = (n, currency = 'NPR') =>
   `${currency} ${Number(n || 0).toLocaleString()}`;
 
 export const formatDate = (d, format = 'AD') => {
   if (!d) return '—';
   if (format === 'BS') return toNepaliDate(d);
-  return new Date(d).toLocaleDateString();
+  const date = new Date(d);
+  return date.toLocaleDateString('en-US', {
+    timeZone: 'Asia/Kathmandu'
+  });
+};
+
+/**
+ * Returns a local date string (YYYY-MM-DD) for a given date,
+ * respecting the Asia/Kathmandu timezone to prevent day-shifts.
+ */
+export const toLocalDateString = (d) => {
+  if (!d) return '';
+  const date = new Date(d);
+  // Using Intl.DateTimeFormat to reliably get components in Nepal timezone
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kathmandu',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date);
+
+  const getPart = (type) => parts.find(p => p.type === type).value;
+  return `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
 };
 
 export const formatTime = (d) =>
-  d ? new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+  d ? new Date(d).toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kathmandu'
+  }) : '—';
 
 export const formatDateTime = (d, format = 'AD') => {
   if (!d) return '—';
-  const time = formatTime(d);
   const date = formatDate(d, format);
+  const time = formatTime(d);
   return `${date} ${time}`;
 };
 

@@ -2,6 +2,7 @@ import Attendance from '../models/Attendance.js';
 import LocationLog from '../models/LocationLog.js';
 import Company from '../models/Company.js';
 import Branch from '../models/Branch.js';
+import Shift from '../models/Shift.js';
 import { ApiError, asyncHandler } from '../utils/ApiError.js';
 import { getPagination, paginatedResponse } from '../utils/pagination.js';
 import { audit } from '../utils/audit.js';
@@ -25,7 +26,7 @@ export const checkIn = asyncHandler(async (req, res) => {
   // 1. Check radius for indoor users
   if (req.user.workMode === 'INDOOR') {
     if (latitude == null || longitude == null) {
-      throw ApiError.badRequest('Location is required for indoor check-in');
+      throw ApiError.badRequest('GPS location is required for indoor staff check-in.');
     }
 
     let targetLoc = null;
@@ -34,7 +35,7 @@ export const checkIn = asyncHandler(async (req, res) => {
     if (req.user.branch) {
       const branch = await Branch.findById(req.user.branch);
       if (branch) {
-        targetLoc = branch.location.coordinates;
+        targetLoc = branch.location?.coordinates;
         radius = branch.radius || 200;
       }
     }
@@ -47,11 +48,14 @@ export const checkIn = asyncHandler(async (req, res) => {
       }
     }
 
-    if (targetLoc) {
+    if (targetLoc && targetLoc.length === 2) {
       const dist = getDistanceMeters(latitude, longitude, targetLoc[1], targetLoc[0]);
       if (dist > radius) {
-        throw ApiError.forbidden(`You must be within ${radius}m of the office/branch to check in. Current distance: ${Math.round(dist)}m.`);
+        throw ApiError.forbidden(`Indoor Staff: You must be within ${radius}m of your assigned branch/office to check in. Current distance: ${Math.round(dist)}m.`);
       }
+    } else {
+      // Fallback: If no location is set for branch/company, we can't enforce radius
+      console.warn(`Radius enforcement failed for user ${req.user._id}: No target location defined for branch or company.`);
     }
   }
 
@@ -114,8 +118,34 @@ export const checkOut = asyncHandler(async (req, res) => {
     address,
     deviceInfo,
   };
+
   attendance.workedMinutes = Math.round((now - attendance.checkIn.time) / 60000);
-  if (attendance.workedMinutes < 240) attendance.status = 'HALF_DAY';
+
+  // Requirement: If working hour is less than half of shift hour mark as half day
+  let thresholdMinutes = 240; // Default 4 hours fallback
+
+  if (req.user.shift) {
+    const shift = await Shift.findById(req.user.shift);
+    if (shift) {
+      const [sh, sm] = shift.startTime.split(':').map(Number);
+      const [eh, em] = shift.endTime.split(':').map(Number);
+
+      let startMins = sh * 60 + sm;
+      let endMins = eh * 60 + em;
+
+      if (endMins < startMins) endMins += 1440; // Crosses midnight
+
+      const totalShiftMinutes = endMins - startMins;
+      thresholdMinutes = Math.floor(totalShiftMinutes / 2);
+    }
+  }
+
+  if (attendance.workedMinutes < thresholdMinutes) {
+    attendance.status = 'HALF_DAY';
+  } else {
+    attendance.status = 'PRESENT';
+  }
+
   await attendance.save();
 
   if (latitude != null) {

@@ -9,6 +9,8 @@ const vendorSchema = new mongoose.Schema(
     address: { type: String, trim: true, maxlength: 300 },
     panVat: { type: String, trim: true, uppercase: true, maxlength: 30 },
     registrationNumber: { type: String, trim: true, maxlength: 50 },
+    outstandingBalance: { type: Number, default: 0 },
+    status: { type: String, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE' },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

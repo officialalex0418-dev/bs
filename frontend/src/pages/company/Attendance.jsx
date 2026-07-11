@@ -2,9 +2,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { FileDown } from 'lucide-react';
 import { api, downloadFile } from '@/api/client';
 import { Card, Button, Table, Badge, Spinner, Pagination, DatePicker } from '@/components/ui';
-import { formatTime } from '@/lib/utils';
+import { formatTime, toNepaliMonth } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 export default function AttendancePage() {
+  const { user } = useAuth();
+  const dateFormat = user?.company?.settings?.dateFormat || 'BS';
   const [data, setData] = useState(null);
   const [page, setPage] = useState(1);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -25,7 +28,7 @@ export default function AttendancePage() {
         <div className="flex items-center gap-2">
           <DatePicker className="w-40" value={date} onChange={(val) => { setDate(val); setPage(1); }} />
           <Button variant="outline" onClick={() => downloadFile(`/reports/attendance/excel?month=${date.slice(0, 7)}`, `attendance-${date.slice(0, 7)}.xlsx`)}>
-            <FileDown className="h-4 w-4" /> Month Excel
+            <FileDown className="h-4 w-4" /> {dateFormat === 'BS' ? toNepaliMonth(date.slice(0, 7)) : 'Month'} Excel
           </Button>
         </div>
       </div>

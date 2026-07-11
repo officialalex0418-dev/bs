@@ -263,7 +263,7 @@ export const employeeSummaryPdf = asyncHandler(async (req, res) => {
         lines: [
           `Email: ${staff.email}`, `Phone: ${staff.phone || '-'}`,
           `Address: ${staff.address || '-'}`, `PAN: ${staff.pan || '-'}`,
-          `Basic Salary: ${staff.basicSalary}`, `Daily Allowance: ${staff.dailyAllowance}`,
+          `Basic Salary: ${staff.basicSalary}`, `Monthly Allowance: ${staff.allowances || 0}`,
         ],
       },
       {

@@ -27,48 +27,82 @@ export const authorize = (...roles) => (req, _res, next) => {
     // Company-level permissions (for STAFF and COMPANY_MANAGER)
     // Owners bypass designation checks within their company
     if (role !== 'COMPANY_OWNER' && role !== 'SUPER_ADMIN') {
-      if (path.startsWith('/staff') && !permissions.staff) return next(ApiError.forbidden('Access denied: Staff Management'));
-      if (path.startsWith('/locations/live') && !permissions.liveTracking) return next(ApiError.forbidden('Access denied: Live Tracking'));
-      if (path.startsWith('/locations/history') && !permissions.liveTracking) return next(ApiError.forbidden('Access denied: Tracking History'));
+      let permissionChecked = false;
+      let permissionGranted = false;
 
-      if (path.startsWith('/attendance')) {
+      if (path.startsWith('/staff')) {
+        permissionChecked = true;
+        permissionGranted = permissions.staff;
+      } else if (path.startsWith('/locations/live') || path.startsWith('/locations/history')) {
+        permissionChecked = true;
+        permissionGranted = permissions.liveTracking;
+      } else if (path.startsWith('/attendance')) {
         const isSelf = path.includes('/me') || path.includes('/check-in') || path.includes('/check-out');
-        if (!isSelf && !permissions.attendance) return next(ApiError.forbidden('Access denied: Attendance Management'));
-      }
-
-      if (path.startsWith('/leaves')) {
+        if (!isSelf) {
+          permissionChecked = true;
+          permissionGranted = permissions.attendance;
+        }
+      } else if (path.startsWith('/leaves')) {
         const isSelf = path.includes('/me') || (req.method === 'POST' && path === '/leaves');
-        if (!isSelf && !permissions.leaves) return next(ApiError.forbidden('Access denied: Leave Management'));
-      }
-
-      if (path.startsWith('/sales')) {
+        if (!isSelf) {
+          permissionChecked = true;
+          permissionGranted = permissions.leaves;
+        }
+      } else if (path.startsWith('/sales')) {
         const isEntry = path.includes('/me') || path.includes('/metadata') || (req.method === 'POST' && path === '/sales');
         const isOwnList = req.method === 'GET' && path === '/sales' && role === 'STAFF';
-
         const dept = (designation?.department?.name || '').toLowerCase();
         const isSalesDept = dept.includes('sales') || dept.includes('marketing');
 
-        // Allow entry actions if user has permission OR is in sales/marketing department
-        if (!permissions.salesTracker) {
-          if (!(isSalesDept && (isEntry || isOwnList))) {
-            return next(ApiError.forbidden('Access denied: Sales Management'));
-          }
+        if (!(isSalesDept && (isEntry || isOwnList))) {
+          permissionChecked = true;
+          permissionGranted = permissions.salesTracker;
         }
+      } else if (path.startsWith('/inventory')) {
+        permissionChecked = true;
+        permissionGranted = permissions.inventory;
+      } else if (path.startsWith('/distributors') || path.startsWith('/vendors') ||
+                 path.startsWith('/cheques') || path.startsWith('/invoices') || path.startsWith('/payments')) {
+        permissionChecked = true;
+        permissionGranted = permissions.distributors;
+      } else if (path.startsWith('/payroll')) {
+        permissionChecked = true;
+        permissionGranted = permissions.payroll;
+      } else if (path.startsWith('/reports')) {
+        permissionChecked = true;
+        permissionGranted = permissions.reports;
+
+        // Allow specific report exports if they have the base module permission
+        if (!permissionGranted) {
+          if (path.includes('/tracking') && permissions.liveTracking) permissionGranted = true;
+          if (path.includes('/attendance') && permissions.attendance) permissionGranted = true;
+          if (path.includes('/sales') && permissions.salesTracker) permissionGranted = true;
+          if (path.includes('/payroll') && permissions.payroll) permissionGranted = true;
+        }
+      } else if (path.startsWith('/company-config')) {
+        permissionChecked = true;
+        permissionGranted = permissions.configuration;
       }
 
-      if (path.startsWith('/inventory') && !permissions.inventory) return next(ApiError.forbidden('Access denied: Inventory'));
-      if (path.startsWith('/distributors') && !permissions.distributors) return next(ApiError.forbidden('Access denied: Distributors'));
-      if (path.startsWith('/vendors') && !permissions.distributors) return next(ApiError.forbidden('Access denied: Vendors'));
-      if (path.startsWith('/payroll') && !permissions.payroll) return next(ApiError.forbidden('Access denied: Payroll'));
-      if (path.startsWith('/reports') && !permissions.reports) return next(ApiError.forbidden('Access denied: Reports'));
-
-      if (path.startsWith('/company-config') && !permissions.configuration) return next(ApiError.forbidden('Access denied: Company Config'));
+      if (permissionChecked) {
+        if (permissionGranted) return next();
+        return next(ApiError.forbidden('Access denied: Granular permission missing'));
+      }
     }
   }
 
   if (!roles.includes(role)) {
     return next(ApiError.forbidden(`Role mismatch: ${role} not in [${roles.join(', ')}]`));
   }
+
+  // Final catch for STAFF: If they are hitting a route meant ONLY for Managers/Owners,
+  // they MUST have passed the granular permission check above (which calls return next() early).
+  const isManagementRoute = (roles.includes('COMPANY_MANAGER') || roles.includes('COMPANY_OWNER')) && !roles.includes('STAFF');
+
+  if (role === 'STAFF' && isManagementRoute) {
+     return next(ApiError.forbidden('Access denied: Staff role requires specific managerial permissions for this route'));
+  }
+
   next();
 };
 

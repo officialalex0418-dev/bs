@@ -4,7 +4,7 @@
  */
 import { useEffect, useState, useRef } from 'react';
 import { X, Loader2, Calendar, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, formatDate, toLocalDateString } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { bsToAd, adToBs, nepaliMonths, nepaliYears, getBsMonthInfo } from '@/lib/nepaliDate';
 
@@ -110,7 +110,8 @@ export const DatePicker = ({ label, value, onChange, className, ...props }) => {
     if (format === 'BS') {
       try {
         const ad = bsToAd(val);
-        onChange(ad.toISOString().split('T')[0]);
+        // Fix: Use localized date string to prevent one-day shift due to timezone differences
+        onChange(toLocalDateString(ad));
       } catch (e) {
         onChange(val);
       }
@@ -217,7 +218,8 @@ const BSCalendarInternal = ({ value, onSelect }) => {
               disabled={!day}
               onClick={() => {
                 const ad = bsToAd(currentBs);
-                onSelect(ad.toISOString().split('T')[0]);
+                // Fix: Use localized date string to prevent one-day shift due to timezone differences
+                onSelect(toLocalDateString(ad));
               }}
               className={cn(
                 "h-8 w-8 rounded-lg text-sm font-medium transition-all",
@@ -234,7 +236,7 @@ const BSCalendarInternal = ({ value, onSelect }) => {
   );
 };
 
-export const MonthPicker = ({ label, value, onChange, className }) => {
+export const MonthPicker = ({ label, value, onChange, className, max }) => {
   const { user } = useAuth();
   const format = user?.company?.settings?.dateFormat || 'BS';
 
@@ -242,24 +244,35 @@ export const MonthPicker = ({ label, value, onChange, className }) => {
     return (
       <label className="block">
         {label && <span className="mb-1.5 block text-sm font-medium">{label}</span>}
-        <input type="month" className={cn('input', className)} value={value} onChange={e => onChange(e.target.value)} />
+        <input type="month" className={cn('input', className)} value={value} onChange={e => onChange(e.target.value)} max={max} />
       </label>
     );
   }
 
-  // Handle BS Month Picker (Simplified: two selects)
-  const [y, m] = (value && value.includes('-')) ? value.split('-') : [2081, '01'];
+  // BS Mode: UI shows BS and state becomes BS YYYY-MM
+  const [bsY, bsM] = (value && value.includes('-') && value.length === 7)
+    ? value.split('-')
+    : [String(adToBs(new Date())?.year || 2081), String(adToBs(new Date())?.month || 1).padStart(2, '0')];
+
+  const handleSelect = (y, m) => {
+    const selectedMonth = `${y}-${String(m).padStart(2, '0')}`;
+    const currentBs = adToBs(new Date());
+    const currentMonthStr = `${currentBs.year}-${String(currentBs.month).padStart(2, '0')}`;
+
+    if (max && selectedMonth > currentMonthStr) return; // Simple BS string comparison for future check
+    onChange(selectedMonth);
+  };
 
   return (
     <label className="block">
       {label && <span className="mb-1.5 block text-sm font-medium">{label}</span>}
       <div className="flex gap-2">
-        <select className="input flex-1" value={y} onChange={e => onChange(`${e.target.value}-${m}`)}>
+        <select className="input flex-1" value={bsY} onChange={e => handleSelect(e.target.value, bsM)}>
           {nepaliYears.map(year => <option key={year} value={year}>{year}</option>)}
         </select>
-        <select className="input flex-1" value={m} onChange={e => onChange(`${y}-${e.target.value}`)}>
+        <select className="input flex-1" value={bsM} onChange={e => handleSelect(bsY, e.target.value)}>
           {nepaliMonths.map((name, idx) => (
-            <option key={idx} value={String(idx+1).padStart(2, '0')}>{name}</option>
+            <option key={idx} value={String(idx + 1).padStart(2, '0')}>{name}</option>
           ))}
         </select>
       </div>

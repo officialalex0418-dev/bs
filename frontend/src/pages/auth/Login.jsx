@@ -28,6 +28,8 @@ export default function Login() {
         setError('Incorrect email or password. Please try again or reset your password if you forgot it.');
       } else if (msg.includes('suspended') || msg.includes('deactivated')) {
         setError('Your account has been suspended or deactivated. Please contact your company administrator.');
+      } else if (msg.includes('device') || msg.includes('primary')) {
+        setError(err.response?.data?.message || 'Login restricted to your primary device.');
       } else if (err.code === 'ERR_NETWORK') {
         setError('Unable to reach the server. Please check your internet connection and try again.');
       } else {

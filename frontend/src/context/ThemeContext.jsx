@@ -22,8 +22,12 @@ export function ThemeProvider({ children }) {
     }).catch(() => {});
   }, []);
 
+  const updateBranding = (newBranding) => {
+    setBranding(prev => ({ ...prev, ...newBranding }));
+  };
+
   return (
-    <ThemeContext.Provider value={{ dark, toggle: () => setDark((d) => !d), branding, setBranding }}>
+    <ThemeContext.Provider value={{ dark, toggle: () => setDark((d) => !d), branding, setBranding: updateBranding }}>
       {children}
     </ThemeContext.Provider>
   );

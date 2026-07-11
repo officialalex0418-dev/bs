@@ -11,6 +11,14 @@ export const listInventory = asyncHandler(async (req, res) => {
   const filter = { company: req.companyId, isActive: true };
   if (req.query.category) filter.category = req.query.category;
   if (req.query.lowStock === 'true') filter.$expr = { $lte: ['$quantity', '$reorderLevel'] };
+
+  const thirtyDaysFromNow = new Date();
+  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+  if (req.query.expirySoon === 'true') {
+    filter.expiryDate = { $lte: thirtyDaysFromNow, $gte: new Date() };
+  }
+
   if (req.query.search) {
     filter.$or = [
       { productName: { $regex: req.query.search, $options: 'i' } },
@@ -18,12 +26,17 @@ export const listInventory = asyncHandler(async (req, res) => {
     ];
   }
 
-  const [items, total, lowStockCount] = await Promise.all([
+  const [items, total, lowStockCount, nearExpiryCount] = await Promise.all([
     Inventory.find(filter).populate('vendor', 'name').sort('productName').skip(skip).limit(limit),
     Inventory.countDocuments(filter),
     Inventory.countDocuments({ company: req.companyId, isActive: true, $expr: { $lte: ['$quantity', '$reorderLevel'] } }),
+    Inventory.countDocuments({
+      company: req.companyId,
+      isActive: true,
+      expiryDate: { $lte: thirtyDaysFromNow, $gte: new Date() }
+    }),
   ]);
-  res.json({ success: true, data: { ...paginatedResponse(items, total, page, limit), lowStockCount } });
+  res.json({ success: true, data: { ...paginatedResponse(items, total, page, limit), lowStockCount, nearExpiryCount } });
 });
 
 /** POST /inventory */

@@ -4,7 +4,7 @@ import { MapContainer, Marker, Polyline, Popup, CircleMarker, TileLayer, useMap 
 import 'leaflet/dist/leaflet.css';
 import { MapPin } from 'lucide-react';
 import { Card, EmptyState } from '@/components/ui';
-import { formatDateTime, formatTime } from '@/lib/utils';
+import { formatDateTime, formatTime, toLocalDateString } from '@/lib/utils';
 
 const DEFAULT_CENTER = { lat: 27.7172, lng: 85.324 }; // Kathmandu
 
@@ -85,67 +85,87 @@ export default function LiveMap({ markers = [], route = [], attendance = [], hea
 
   const routeMarkers = useMemo(() => {
     const items = [];
-    let charCode = 65; // 'A'
+    const days = {};
 
-    // Add Check-ins
+    // Group attendance by date
     (attendance || []).forEach((a) => {
-      if (a?.checkIn?.lat != null) {
-        items.push({
-          lat: a.checkIn.lat,
-          lng: a.checkIn.lng,
-          label: 'A',
-          time: a.checkIn.time,
-          address: a.checkIn.address,
-          type: 'Check-In',
-          color: '#16a34a'
-        });
-        charCode = 66; // Start logs from 'B'
-      }
+      const d = a.date;
+      if (!days[d]) days[d] = { attendance: [], points: [] };
+      days[d].attendance.push(a);
     });
 
-    // Add Logs
-    let lastMarkerTime = null;
+    // Group logs by date
     (route || []).forEach((p) => {
-      if (p?.lat != null) {
-        const currentTime = new Date(p.recordedAt);
-        // Only add a marker if it's the first one or if enough time has passed based on package interval
-        const shouldAddMarker = !lastMarkerTime ||
-          (currentTime - lastMarkerTime) >= (markerInterval * 60000);
-
-        if (shouldAddMarker) {
-          items.push({
-            lat: p.lat,
-            lng: p.lng,
-            label: String.fromCharCode(charCode),
-            time: p.recordedAt,
-            address: p.address,
-            type: 'Location Ping',
-            color: '#2563eb'
-          });
-          lastMarkerTime = currentTime;
-          charCode++;
-          if (charCode > 90) charCode = 65; // Wrap if > 26 points
-        }
-      }
+      const d = toLocalDateString(p.recordedAt);
+      if (!days[d]) days[d] = { attendance: [], points: [] };
+      days[d].points.push(p);
     });
 
-    // Add Check-outs
-    (attendance || []).forEach((a) => {
-      if (a?.checkOut?.lat != null) {
-        items.push({
-          lat: a.checkOut.lat,
-          lng: a.checkOut.lng,
-          label: 'OUT',
-          time: a.checkOut.time,
-          address: a.checkOut.address,
-          type: 'Check-Out',
-          color: '#ef4444'
-        });
-      }
+    const sortedDays = Object.keys(days).sort();
+
+    sortedDays.forEach((day) => {
+      const dayData = days[day];
+      let charCode = 65; // 'A'
+      let lastMarkerTime = null;
+
+      // Add Check-ins for the day
+      dayData.attendance.forEach((a) => {
+        if (a?.checkIn?.lat != null) {
+          items.push({
+            lat: a.checkIn.lat,
+            lng: a.checkIn.lng,
+            label: 'A',
+            time: a.checkIn.time,
+            address: a.checkIn.address,
+            type: `Check-In (${day})`,
+            color: '#16a34a'
+          });
+          charCode = 66; // Next is 'B'
+        }
+      });
+
+      // Add Logs for the day
+      dayData.points.sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt)).forEach((p) => {
+        if (p?.lat != null) {
+          const currentTime = new Date(p.recordedAt);
+          const shouldAddMarker = !lastMarkerTime ||
+            (currentTime - lastMarkerTime) >= (markerInterval * 60000);
+
+          if (shouldAddMarker) {
+            items.push({
+              lat: p.lat,
+              lng: p.lng,
+              label: String.fromCharCode(charCode),
+              time: p.recordedAt,
+              address: p.address,
+              type: `Location Ping (${day})`,
+              color: '#2563eb'
+            });
+            lastMarkerTime = currentTime;
+            charCode++;
+            if (charCode > 90) charCode = 65;
+          }
+        }
+      });
+
+      // Add Check-outs for the day
+      dayData.attendance.forEach((a) => {
+        if (a?.checkOut?.lat != null) {
+          items.push({
+            lat: a.checkOut.lat,
+            lng: a.checkOut.lng,
+            label: 'OUT',
+            time: a.checkOut.time,
+            address: a.checkOut.address,
+            type: `Check-Out (${day})`,
+            color: '#ef4444'
+          });
+        }
+      });
     });
 
     return items;
-  }, [route, attendance]);
+  }, [route, attendance, markerInterval]);
 
   const allPoints = useMemo(() => {
     let pts = [];

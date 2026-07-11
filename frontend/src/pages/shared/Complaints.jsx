@@ -317,7 +317,7 @@ export default function Complaints() {
   return (
     <div className="max-w-3xl mx-auto space-y-4">
       <div className="flex items-center justify-between px-2">
-        <h1 className="text-xl font-bold dark:text-white">Complaints & Chats</h1>
+        <h1 className="text-xl font-bold dark:text-white">Chat</h1>
         <Button size="sm" onClick={() => setShowNewChat(true)}>
           <Plus className="h-4 w-4 mr-1" /> New Chat
         </Button>
@@ -376,7 +376,7 @@ export default function Complaints() {
       </Card>
 
       <div className="text-center pb-10">
-        <p className="text-xs text-slate-400">Your chats are visible to authorized management staff only.</p>
+        <p className="text-xs text-slate-400">Personal chats are visible to you and the recipient only.</p>
       </div>
 
       <ComplaintModal

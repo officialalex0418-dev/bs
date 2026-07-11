@@ -22,7 +22,7 @@ const cookieOpts = {
 
 /** POST /auth/login */
 export const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, deviceId } = req.body;
   const user = await User.findOne({ email: email.toLowerCase() })
     .select('+password +refreshTokens')
     .populate({
@@ -44,6 +44,25 @@ export const login = asyncHandler(async (req, res) => {
 
   // Single device login for STAFF
   if (user.role === 'STAFF') {
+    // Device ID is mandatory for staff login (mobile app)
+    if (!deviceId) {
+      throw ApiError.badRequest('Device ID is required for staff login');
+    }
+
+    if (!user.primaryDeviceId) {
+      user.primaryDeviceId = deviceId;
+    } else if (user.primaryDeviceId !== deviceId) {
+      if (user.isDeviceResetAuthorized) {
+        user.primaryDeviceId = deviceId;
+        user.isDeviceResetAuthorized = false;
+        user.deviceResetRequested = false;
+      } else {
+        throw ApiError.forbidden(user.deviceResetRequested
+          ? 'Device reset request is pending approval.'
+          : 'Login allowed on primary device only. Please request a device reset from your company.');
+      }
+    }
+
     // 1. Force logout other devices
     user.refreshTokens = [];
 
@@ -246,4 +265,30 @@ export const changePassword = asyncHandler(async (req, res) => {
   await user.save();
   audit({ req, action: 'PASSWORD_CHANGED', entity: 'Auth' });
   res.json({ success: true, message: 'Password changed. Please login again.' });
+});
+
+/** POST /auth/request-device-reset */
+export const requestDeviceReset = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+
+  if (!user || !(await user.comparePassword(password))) {
+    throw ApiError.unauthorized('Invalid email or password');
+  }
+
+  user.deviceResetRequested = true;
+  await user.save({ validateBeforeSave: false });
+
+  // Notify company owners
+  const owners = await User.find({ company: user.company, role: 'COMPANY_OWNER', isActive: true });
+  for (const owner of owners) {
+    emails.deviceResetRequested(owner.email, {
+      ownerName: owner.name,
+      staffName: user.name,
+      staffEmail: user.email
+    });
+  }
+
+  audit({ req, user: user._id, action: 'DEVICE_RESET_REQUESTED', entity: 'Auth' });
+  res.json({ success: true, message: 'Device reset request submitted to your company owner.' });
 });

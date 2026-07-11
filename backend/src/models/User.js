@@ -33,6 +33,7 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ALL_ROLES, required: true, index: true },
     subRole: { type: String, enum: [...ADMIN_EMPLOYEE_SUBROLES, null], default: null }, // for ADMIN_EMPLOYEE (Deprecated in favor of designation)
     designation: { type: mongoose.Schema.Types.ObjectId, ref: 'Designation', default: null },
+    shift: { type: mongoose.Schema.Types.ObjectId, ref: 'Shift', default: null },
     company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', index: true, default: null },
     branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', default: null },
     position: { type: String, trim: true, maxlength: 100 },
@@ -50,6 +51,10 @@ const userSchema = new mongoose.Schema(
     passwordResetExpires: { type: Date, select: false },
     refreshTokens: { type: [refreshTokenSchema], select: false },
     lastLoginAt: Date,
+    // Device locking
+    primaryDeviceId: { type: String, default: null },
+    isDeviceResetAuthorized: { type: Boolean, default: false },
+    deviceResetRequested: { type: Boolean, default: false },
     // Staff-specific
     monthlyTarget: { type: Number, min: 0, default: 0 },
     leaveBalance: {

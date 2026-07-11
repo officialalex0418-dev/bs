@@ -7,7 +7,11 @@ const password = Joi.string().min(8).max(128)
 
 export const schemas = {
   // ---- Auth ----
-  login: Joi.object({ email: Joi.string().email().required(), password: Joi.string().required() }),
+  login: Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().required(),
+    deviceId: Joi.string().allow('', null),
+  }),
   forgotPassword: Joi.object({ email: Joi.string().email().required() }),
   requestPasswordResetOtp: Joi.object({ email: Joi.string().email().required() }),
   resetPasswordWithOtp: Joi.object({

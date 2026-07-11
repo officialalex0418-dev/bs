@@ -23,6 +23,7 @@ export default function DashboardLayout({ title, nav }) {
     window.dispatchEvent(new Event('resize'));
   }, [sidebarOpen]);
   const [notifOpen, setNotifOpen] = useState(false);
+
   const [notifications, setNotifications] = useState([]);
   const [unread, setUnread] = useState(0);
 
@@ -50,6 +51,56 @@ export default function DashboardLayout({ title, nav }) {
 
   const handleLogout = async () => { await logout(); navigate('/login'); };
 
+  const handleNotificationClick = (n) => {
+    setNotifOpen(false);
+    const role = user?.role;
+    const isOwner = role === 'COMPANY_OWNER';
+    const isManager = role === 'COMPANY_MANAGER';
+    const isStaff = role === 'STAFF';
+
+    // Base paths based on role
+    const mgmtPrefix = isOwner ? '/company' : (isManager ? '/staff/management' : '');
+    const staffPrefix = '/staff';
+
+    if (n.link) {
+      navigate(n.link);
+      return;
+    }
+
+    switch (n.type) {
+      case 'LEAVE_APPLIED':
+        navigate(`${mgmtPrefix}/leaves`);
+        break;
+      case 'LEAVE_APPROVED':
+      case 'LEAVE_REJECTED':
+        navigate(`${staffPrefix}/leaves`);
+        break;
+      case 'PAYROLL_GENERATED':
+        navigate(isStaff ? `${staffPrefix}/payroll` : `${mgmtPrefix}/payroll`);
+        break;
+      case 'LOW_STOCK':
+        navigate(`${mgmtPrefix}/inventory`);
+        break;
+      case 'SALE_SUBMITTED':
+        navigate(`${mgmtPrefix}/sales`);
+        break;
+      case 'STAFF_CREATED':
+        navigate(`${mgmtPrefix}/staff`);
+        break;
+      case 'COMPANY_CREATED':
+        if (['SUPER_ADMIN', 'ADMIN_EMPLOYEE'].includes(role)) navigate('/admin/companies');
+        break;
+      case 'PACKAGE_ASSIGNED':
+        if (isOwner) navigate('/company/settings');
+        break;
+      case 'GENERAL':
+        navigate(isOwner ? '/company/complaints' : '/staff/complaints');
+        break;
+      default:
+        break;
+    }
+  };
+
   useEffect(() => {
     if (!user) return undefined;
     const idleTimeoutMs = 30 * 60 * 1000;
@@ -76,7 +127,7 @@ export default function DashboardLayout({ title, nav }) {
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside className={cn(
-        'fixed inset-y-0 left-0 z-[9999] w-64 transform border-r border-slate-200 bg-white transition-transform dark:border-slate-800 dark:bg-slate-900 lg:translate-x-0',
+        'fixed inset-y-0 left-0 z-[9999] w-64 transform flex flex-col border-r border-slate-200 bg-white transition-transform dark:border-slate-800 dark:bg-slate-900 lg:translate-x-0',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
         <div className="flex h-16 items-center justify-between border-b border-slate-200 px-5 dark:border-slate-800">
@@ -99,7 +150,7 @@ export default function DashboardLayout({ title, nav }) {
             <X className="h-5 w-5 text-slate-500" />
           </button>
         </div>
-        <nav className="space-y-1 p-3">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
@@ -157,7 +208,11 @@ export default function DashboardLayout({ title, nav }) {
                     {notifications.length === 0 ? (
                       <p className="px-4 py-8 text-center text-sm text-slate-400">No notifications</p>
                     ) : notifications.map((n) => (
-                      <div key={n._id} className="border-b border-slate-100 px-4 py-3 last:border-0 dark:border-slate-800">
+                      <div
+                        key={n._id}
+                        onClick={() => handleNotificationClick(n)}
+                        className="cursor-pointer border-b border-slate-100 px-4 py-3 transition hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50"
+                      >
                         <p className="text-sm font-medium">{n.title}</p>
                         <p className="text-xs text-slate-500">{n.message}</p>
                         <p className="mt-1 text-[10px] text-slate-400">{new Date(n.createdAt).toLocaleString()}</p>

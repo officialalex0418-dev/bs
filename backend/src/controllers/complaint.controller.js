@@ -1,5 +1,6 @@
-import { Complaint, User, ComplaintMessage, Notification, Company } from '../models/index.js';
+import { Complaint, User, ComplaintMessage, Company } from '../models/index.js';
 import { asyncHandler, ApiError } from '../utils/ApiError.js';
+import { notify } from '../services/notification.service.js';
 
 /**
  * @desc    Submit a new complaint
@@ -56,7 +57,7 @@ export const createComplaint = asyncHandler(async (req, res) => {
     });
 
     for (const admin of admins) {
-      await Notification.create({
+      await notify({
         recipient: admin._id,
         company: req.user.company,
         type: 'GENERAL',
@@ -65,7 +66,7 @@ export const createComplaint = asyncHandler(async (req, res) => {
       });
     }
   } else if (complaint.recipient) {
-    await Notification.create({
+    await notify({
       recipient: complaint.recipient,
       company: req.user.company,
       type: 'GENERAL',
@@ -145,7 +146,7 @@ export const addReply = asyncHandler(async (req, res) => {
       ? `${req.user.name}: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`
       : `${req.user.name} sent an attachment`;
 
-    await Notification.create({
+    await notify({
       recipient: pid,
       company: complaint.company,
       type: 'GENERAL',
@@ -178,17 +179,17 @@ export const getComplaintMessages = asyncHandler(async (req, res) => {
 export const getComplaints = asyncHandler(async (req, res) => {
   let filter = { company: req.user.company };
 
-  if (req.user.role === 'STAFF') {
-    // Staff see group complaints OR those they sent OR those sent to them
-    filter = {
-      company: req.user.company,
-      $or: [
-        { isGroup: true },
-        { sender: req.user._id },
-        { recipient: req.user._id }
-      ]
-    };
-  }
+  // Everyone (including owners/managers) should only see:
+  // 1. Group chats
+  // 2. Private chats they are involved in (as sender or recipient)
+  filter = {
+    company: req.user.company,
+    $or: [
+      { isGroup: true },
+      { sender: req.user._id },
+      { recipient: req.user._id }
+    ]
+  };
 
   const complaints = await Complaint.find(filter)
     .populate('sender', 'name email position')

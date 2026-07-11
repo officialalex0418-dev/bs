@@ -232,4 +232,17 @@ export const emails = {
         ${remarks ? `<p><b>Remarks:</b> ${remarks}</p>` : ''}<br/>
         Thank you for your valuable contribution to the team.`,
     }),
+
+  deviceResetRequested: (to, { ownerName, staffName, staffEmail }) =>
+    sendEmail({
+      to,
+      subject: 'Device Reset Request - Security Action Required',
+      title: 'Action Required: Device Reset',
+      bodyHtml: `Hi ${ownerName},<br/><br/>
+        An employee, <b>${staffName}</b> (${staffEmail}), has requested a device reset for their account.<br/><br/>
+        For security reasons, they cannot login from a new device until you authorize this reset from the employee management panel.<br/><br/>
+        If you authorize this, they will be able to register their next login device as their new primary device.`,
+      ctaText: 'Open Employee Management',
+      ctaUrl: `${env.clientUrl}/login`,
+    }),
 };

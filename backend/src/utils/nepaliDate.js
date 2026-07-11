@@ -1,6 +1,5 @@
 /**
- * Bikram Sambat (BS) Mapping 2070-2090
- * Data aligned with official Panchannga (Verified for current years).
+ * Bikram Sambat (BS) Logic for Backend (Synced with Frontend)
  */
 export const bsMapping = {
   2070: [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
@@ -26,16 +25,12 @@ export const bsMapping = {
   2090: [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 30, 30],
 };
 
-export const nepaliMonths = ['Baisakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'];
-export const nepaliYears = Array.from({ length: 21 }, (_, i) => 2070 + i);
-
 export function adToBs(date) {
   if (!date) return null;
   const d = new Date(date);
   if (isNaN(d.getTime())) return null;
 
   // Use Intl.DateTimeFormat to reliably get the date in Nepal timezone
-  // This ensures that regardless of where the browser/server is, we convert the Nepal day.
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Kathmandu',
     year: 'numeric',
@@ -50,8 +45,7 @@ export function adToBs(date) {
   const adRef = Date.UTC(2013, 3, 14);
 
   let totalDiff = Math.floor((adTarget - adRef) / (1000 * 60 * 60 * 24));
-
-  if (totalDiff < 0) return { formatted: `${d.toLocaleDateString()} (AD)` };
+  if (totalDiff < 0) return null;
 
   let bsYear = 2070;
   let bsMonth = 0;
@@ -63,23 +57,13 @@ export function adToBs(date) {
     if (totalDiff >= monthDays) {
       totalDiff -= monthDays;
       bsMonth++;
-      if (bsMonth > 11) {
-        bsMonth = 0;
-        bsYear++;
-      }
+      if (bsMonth > 11) { bsMonth = 0; bsYear++; }
     } else {
       bsDay += totalDiff;
       totalDiff = 0;
     }
   }
-
-  return {
-    year: bsYear,
-    month: bsMonth + 1,
-    day: bsDay,
-    monthName: nepaliMonths[bsMonth],
-    formatted: `${bsYear}-${String(bsMonth + 1).padStart(2, '0')}-${String(bsDay).padStart(2, '0')}`
-  };
+  return { year: bsYear, month: bsMonth + 1, day: bsDay };
 }
 
 export function bsToAd(bsDateStr) {
@@ -97,12 +81,16 @@ export function bsToAd(bsDateStr) {
 
   const adReference = new Date(Date.UTC(2013, 3, 14));
   adReference.setUTCDate(adReference.getUTCDate() + totalDays);
-  return new Date(adReference.getUTCFullYear(), adReference.getUTCMonth(), adReference.getUTCDate());
+  return adReference;
 }
 
-export function getBsMonthInfo(year, month) {
-  if (!bsMapping[year]) return null;
-  const daysInMonth = bsMapping[year][month - 1];
-  const firstDayAd = bsToAd(`${year}-${String(month).padStart(2, '0')}-01`);
-  return { daysInMonth, startDayOfWeek: firstDayAd.getDay() };
+export function getBsMonthRange(bsMonthStr) {
+  const [y, m] = bsMonthStr.split('-').map(Number);
+  const start = bsToAd(`${y}-${m}-01`);
+  const days = bsMapping[y][m-1];
+  const end = bsToAd(`${y}-${m}-${days}`);
+  // Set times
+  start.setUTCHours(0, 0, 0, 0);
+  end.setUTCHours(23, 59, 59, 999);
+  return { start, end };
 }

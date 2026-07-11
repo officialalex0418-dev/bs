@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import { api } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { Card, Button, Input, Select, Modal, Table, Badge, Spinner, Pagination, EmptyState, Textarea, Checkbox, DatePicker } from '@/components/ui';
-import { formatMoney, formatDate } from '@/lib/utils';
+import { formatMoney, formatDate, cn } from '@/lib/utils';
 import { Boxes } from 'lucide-react';
 
 const emptyForm = {
@@ -22,7 +22,8 @@ export default function InventoryPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [lowOnly, setLowOnly] = useState(false);
-  const [modal, setModal] = useState(null); // 'form' | 'stock' | 'bulk' | 'vendor' | 'purchase' | 'invoice'
+  const [expirySoon, setExpirySoon] = useState(false);
+  const [modal, setModal] = useState(null); // 'form' | 'stock' | 'bulk' | 'vendor' | 'purchase' | 'invoice' | 'quickProduct'
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
 
@@ -30,6 +31,7 @@ export default function InventoryPage() {
   const [purchaseRows, setPurchaseRows] = useState([
     { productName: '', productId: '', batch: '', price: 0, quantity: 1, amount: 0, expiryDate: '' }
   ]);
+  const [quickProductRowIndex, setQuickProductRowIndex] = useState(null);
   const [purchaseVendorId, setPurchaseVendorId] = useState('');
   const [purchaseDiscountPct, setPurchaseDiscountPct] = useState(0);
   const [purchaseVatPct, setPurchaseVatPct] = useState(0);
@@ -236,12 +238,19 @@ export default function InventoryPage() {
 
   const load = useCallback(async () => {
     try {
-      const { data } = await api.get('/inventory', { params: { page, search: search || undefined, lowStock: lowOnly || undefined } });
+      const { data } = await api.get('/inventory', {
+        params: {
+          page,
+          search: search || undefined,
+          lowStock: lowOnly || undefined,
+          expirySoon: expirySoon || undefined
+        }
+      });
       setData(data.data);
     } catch (err) {
       if (err.response?.status === 403) setFeatureBlocked(true);
     }
-  }, [page, search, lowOnly]);
+  }, [page, search, lowOnly, expirySoon]);
 
   const loadVendors = useCallback(async () => {
     try {
@@ -335,6 +344,7 @@ export default function InventoryPage() {
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">Inventory</h1>
           {data.lowStockCount > 0 && <Badge color="red">{data.lowStockCount} Low Stock</Badge>}
+          {data.nearExpiryCount > 0 && <Badge color="yellow">{data.nearExpiryCount} Near Expiry</Badge>}
         </div>
         <div className="flex gap-2">
           <Button
@@ -360,9 +370,13 @@ export default function InventoryPage() {
       <Card>
         <div className="flex flex-wrap items-center gap-4 border-b border-slate-200 p-4 dark:border-slate-800">
           <Input placeholder="Search SKU or Name…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="max-w-xs" />
-          <label className="flex items-center gap-2 text-sm font-medium">
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
             <input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={lowOnly} onChange={(e) => { setLowOnly(e.target.checked); setPage(1); }} />
-            Low stock only
+            Low stock
+          </label>
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
+            <input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={expirySoon} onChange={(e) => { setExpirySoon(e.target.checked); setPage(1); }} />
+            Expiring soon
           </label>
         </div>
         <Table
@@ -380,7 +394,17 @@ export default function InventoryPage() {
                 <Badge color={p.isLowStock ? 'red' : 'green'}>{p.quantity}</Badge>
               </td>
               <td className="table-td text-xs">
-                {p.expiryDate ? formatDate(p.expiryDate, dateFormat) : '-'}
+                {p.expiryDate ? (
+                  <div className="flex flex-col gap-1">
+                    <span className={cn(
+                      p.isExpired ? "text-red-600 font-bold" : p.isNearExpiry ? "text-amber-600 font-bold" : ""
+                    )}>
+                      {formatDate(p.expiryDate, dateFormat)}
+                    </span>
+                    {p.isExpired && <Badge color="red">Expired</Badge>}
+                    {p.isNearExpiry && !p.isExpired && <Badge color="yellow">Expiring Soon</Badge>}
+                  </div>
+                ) : '-'}
               </td>
               <td className="table-td">
                 <div className="flex gap-1">
@@ -413,7 +437,19 @@ export default function InventoryPage() {
                <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
                   <p>Batch: <span className="text-slate-900 dark:text-slate-300">{p.batchNumber || '-'}</span></p>
                   <p>Price: <span className="text-slate-900 dark:text-slate-300">{formatMoney(p.costPrice)}</span></p>
-                  <p>Expiry: <span className="text-slate-900 dark:text-slate-300">{p.expiryDate ? formatDate(p.expiryDate, dateFormat) : '-'}</span></p>
+                  <p>Expiry: <span className={cn(
+                    "font-medium",
+                    p.isExpired ? "text-red-600" : p.isNearExpiry ? "text-amber-600" : "text-slate-900 dark:text-slate-300"
+                  )}>
+                    {p.expiryDate ? formatDate(p.expiryDate, dateFormat) : '-'}
+                  </span></p>
+                  {p.isNearExpiry && (
+                    <div className="col-span-2 mt-1">
+                      <Badge color={p.isExpired ? "red" : "yellow"}>
+                        {p.isExpired ? "EXPIRED" : "EXPIRING SOON"}
+                      </Badge>
+                    </div>
+                  )}
                </div>
                <div className="flex gap-2 pt-2">
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditing(p);
@@ -577,6 +613,24 @@ export default function InventoryPage() {
          </form>
       </Modal>
 
+      {/* Quick Product Create Modal */}
+      <Modal open={modal === 'quickProduct'} onClose={() => setModal('purchase')} title="Quick Add Product">
+         <form onSubmit={(e) => {
+           e.preventDefault();
+           const name = e.target.productName.value;
+           if (quickProductRowIndex !== null) {
+             updatePurchaseRow(quickProductRowIndex, 'productName', name);
+             updatePurchaseRow(quickProductRowIndex, 'productId', ''); // Mark as new product
+           }
+           setModal('purchase');
+           setQuickProductRowIndex(null);
+         }} className="space-y-4">
+            <Input name="productName" label="Product Name *" required placeholder="Enter product name..." autoFocus />
+            <p className="text-xs text-slate-500">This will be used to identify the product. Other details like Batch and Price can be entered in the purchase row.</p>
+            <Button type="submit" className="w-full">Use this Product</Button>
+         </form>
+      </Modal>
+
       {/* Purchase Entry Modal */}
       <Modal open={modal === 'purchase'} onClose={() => setModal(null)} title="New Purchase Entry" wide>
         {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
@@ -632,21 +686,54 @@ export default function InventoryPage() {
                   <tr key={idx}>
                     <td className="px-2 py-2">{idx + 1}</td>
                     <td className="px-2 py-2 min-w-[200px]">
-                      <Select
-                        className="w-full"
-                        value={row.productId}
-                        onChange={(e) => {
-                          const prod = allProducts.find(p => p._id === e.target.value);
-                          updatePurchaseRow(idx, 'productId', e.target.value);
-                          updatePurchaseRow(idx, 'productName', prod?.productName || '');
-                          if (prod) updatePurchaseRow(idx, 'price', prod.costPrice);
-                        }}
-                        options={[
-                          { value: '', label: 'Select product...' },
-                          ...allProducts.map(p => ({ value: p._id, label: p.productName }))
-                        ]}
-                        required
-                      />
+                      {row.productId === '' && row.productName ? (
+                        <div className="relative">
+                          <Input
+                            value={row.productName}
+                            onChange={e => updatePurchaseRow(idx, 'productName', e.target.value)}
+                            placeholder="New Product Name"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updatePurchaseRow(idx, 'productName', '');
+                              updatePurchaseRow(idx, 'productId', '');
+                            }}
+                            className="absolute -top-2 -right-2 bg-slate-100 rounded-full p-0.5 shadow-sm hover:bg-slate-200"
+                            title="Back to list"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <Select
+                          className="w-full"
+                          value={row.productId}
+                          onChange={(e) => {
+                            if (e.target.value === 'NEW') {
+                              setQuickProductRowIndex(idx);
+                              setModal('quickProduct');
+                              return;
+                            }
+                            const prod = allProducts.find(p => p._id === e.target.value);
+                            updatePurchaseRow(idx, 'productId', e.target.value);
+                            updatePurchaseRow(idx, 'productName', prod?.productName || '');
+                            if (prod) {
+                              updatePurchaseRow(idx, 'price', prod.costPrice);
+                              updatePurchaseRow(idx, 'batch', prod.batchNumber || '');
+                            }
+                          }}
+                          options={[
+                            { value: '', label: 'Select product...' },
+                            { value: 'NEW', label: '+ Add New Product' },
+                            ...allProducts.map(p => ({
+                              value: p._id,
+                              label: `${p.productName} ${p.batchNumber ? `(Batch: ${p.batchNumber})` : ''}`
+                            }))
+                          ]}
+                          required
+                        />
+                      )}
                     </td>
                     <td className="px-2 py-2">
                       <Input value={row.batch} onChange={e => updatePurchaseRow(idx, 'batch', e.target.value)} placeholder="Batch" />
@@ -796,7 +883,10 @@ export default function InventoryPage() {
                         }}
                         options={[
                           { value: '', label: 'Select product...' },
-                          ...allProducts.map(p => ({ value: p._id, label: `${p.productName} (Stock: ${p.quantity})` }))
+                          ...allProducts.map(p => ({
+                            value: p._id,
+                            label: `${p.productName} ${p.batchNumber ? `(Batch: ${p.batchNumber})` : ''} - Stock: ${p.quantity}`
+                          }))
                         ]}
                         required
                       />
