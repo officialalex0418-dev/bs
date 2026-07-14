@@ -5,7 +5,7 @@ const leaveSchema = new mongoose.Schema(
   {
     staff: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
-    type: { type: String, enum: LEAVE_TYPES, required: true },
+    type: { type: String, required: true },
     fromDate: { type: Date, required: true },
     toDate: {
       type: Date,

@@ -7,6 +7,7 @@ import Sale from '../models/Sale.js';
 import LocationLog from '../models/LocationLog.js';
 import AuditLog from '../models/AuditLog.js';
 import Leave from '../models/Leave.js';
+import Holiday from '../models/Holiday.js';
 import { asyncHandler } from '../utils/ApiError.js';
 import { todayStr } from '../utils/dates.js';
 
@@ -115,13 +116,16 @@ export const staffDashboard = asyncHandler(async (req, res) => {
   const month = today.slice(0, 7);
   const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
 
-  const [todayAttendance, monthAttendance, salesAgg] = await Promise.all([
+  const [todayAttendance, monthAttendance, salesAgg, upcomingHolidays, recentLeaves] = await Promise.all([
     Attendance.findOne({ staff: userId, date: today }),
     Attendance.find({ staff: userId, date: { $regex: `^${month}` } }).lean(),
     Sale.aggregate([
       { $match: { staff: userId, saleDate: { $gte: startOfMonth } } },
       { $group: { _id: null, achieved: { $sum: '$amount' }, count: { $sum: 1 } } },
     ]),
+    Holiday.find({ company: req.user.company?._id, startDate: { $gte: new Date() } })
+      .sort('startDate').limit(5).lean(),
+    Leave.find({ staff: userId }).sort('-createdAt').limit(5).lean(),
   ]);
 
   const lateDays = monthAttendance.filter((a) => a.checkIn?.isLate).length;
@@ -153,6 +157,8 @@ export const staffDashboard = asyncHandler(async (req, res) => {
       remainingTarget: Math.max(target - achieved, 0),
       salesProgressPct: target ? Math.min(Math.round((achieved / target) * 100), 100) : 0,
       attendanceProgressPct: Math.min(Math.round((presentDays / 26) * 100), 100),
+      upcomingHolidays,
+      recentLeaves,
     },
   });
 });

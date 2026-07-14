@@ -14,6 +14,7 @@ const payrollSchema = new mongoose.Schema(
       other: { type: Number, default: 0, min: 0 },
     },
     presentDays: { type: Number, default: 0 },
+    paidLeaveDays: { type: Number, default: 0 },
     workingDays: { type: Number, default: 0 },
     netSalary: { type: Number, required: true },
     status: { type: String, enum: ['DRAFT', 'GENERATED', 'PAID'], default: 'GENERATED', index: true },

@@ -2,6 +2,8 @@ import Payroll from '../models/Payroll.js';
 import User from '../models/User.js';
 import Attendance from '../models/Attendance.js';
 import Company from '../models/Company.js';
+import Leave from '../models/Leave.js';
+import LeaveType from '../models/LeaveType.js';
 import { ApiError, asyncHandler } from '../utils/ApiError.js';
 import { getPagination, paginatedResponse } from '../utils/pagination.js';
 import { audit } from '../utils/audit.js';
@@ -81,6 +83,21 @@ export const generatePayroll = asyncHandler(async (req, res) => {
   const staffList = await User.find(staffFilter);
   if (!staffList.length) throw ApiError.badRequest('No active staff to generate payroll for');
 
+  const leaveTypes = company ? await LeaveType.find({ company: company._id }) : [];
+  const paidLeaveTypeNames = leaveTypes.filter(lt => lt.isPaid).map(lt => lt.name);
+  if (!paidLeaveTypeNames.includes('PAID')) paidLeaveTypeNames.push('PAID');
+  if (!paidLeaveTypeNames.includes('SICK')) paidLeaveTypeNames.push('SICK');
+
+  let startMonth, endMonth;
+  if (company?.settings?.dateFormat === 'BS') {
+    const range = getBsMonthRange(month);
+    startMonth = range.start; endMonth = range.end;
+  } else {
+    const [y, m] = month.split('-').map(Number);
+    startMonth = new Date(Date.UTC(y, m - 1, 1));
+    endMonth = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+  }
+
   const results = [];
 
   for (const staff of staffList) {
@@ -99,12 +116,32 @@ export const generatePayroll = asyncHandler(async (req, res) => {
       ? attendanceRecords.reduce((acc, curr) => acc + (curr.status === 'HALF_DAY' ? 0.5 : 1), 0)
       : totalWorkingDays;
 
+    const approvedLeaves = company
+      ? await Leave.find({
+          staff: staff._id, status: 'APPROVED',
+          $or: [
+            { fromDate: { $gte: startMonth, $lte: endMonth } },
+            { toDate: { $gte: startMonth, $lte: endMonth } },
+          ],
+        })
+      : [];
+
+    let paidLeaveDays = 0;
+    for (const l of approvedLeaves) {
+      if (paidLeaveTypeNames.includes(l.type)) {
+        paidLeaveDays += l.days;
+      }
+    }
+
+    const effectivePresentDays = Math.min(presentDays + paidLeaveDays, totalWorkingDays);
     const perDay = staff.basicSalary / totalWorkingDays || 0;
-    const absentDays = Math.max(totalWorkingDays - presentDays, 0);
+    const absentDays = Math.max(totalWorkingDays - effectivePresentDays, 0);
     const absentDeduction = Math.round(perDay * absentDays);
 
-    // Using monthly fixed allowances instead of per-day allowance
-    const allowance = Number(staff.allowances || 0);
+    // Using monthly fixed allowances + daily allowances (per present day)
+    const monthlyAllowance = Number(staff.allowances || 0);
+    const dailyAllowance = (staff.dailyAllowance || 0) * presentDays;
+    const allowance = monthlyAllowance + dailyAllowance;
 
     const tax = Math.round(staff.basicSalary * 0.01); // 1% Social Security Tax
     const netSalary = Math.max(Math.round(staff.basicSalary + allowance - absentDeduction - tax), 0);
@@ -115,6 +152,7 @@ export const generatePayroll = asyncHandler(async (req, res) => {
       month,
       basicSalary: staff.basicSalary,
       allowance,
+      paidLeaveDays,
       deductions: { absent: absentDeduction, tax, other: 0 },
       presentDays, workingDays: totalWorkingDays, netSalary,
       generatedBy: req.user._id,

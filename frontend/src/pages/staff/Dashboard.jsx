@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarCheck, CalendarOff, Target, Clock as ClockIcon, MapPin, AlertTriangle, MessageSquare, Mail, Phone, Building2 } from 'lucide-react';
+import { CalendarCheck, CalendarOff, Target, Clock as ClockIcon, MapPin, AlertTriangle, MessageSquare, Mail, Phone, Building2, Calendar } from 'lucide-react';
 import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts';
 import { api } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { useLocationTracker } from '@/hooks/useLocationTracker';
-import { Card, CardHeader, CardBody, Spinner, Badge, Button } from '@/components/ui';
-import { formatMoney, formatTime } from '@/lib/utils';
+import { Card, CardHeader, CardBody, Spinner, Badge, Button, EmptyState } from '@/components/ui';
+import { formatMoney, formatTime, formatDate } from '@/lib/utils';
+import { adToBs } from '@/lib/nepaliDate';
 import { t } from '@/lib/i18n';
 import LiveClock from '@/components/Clock';
 
@@ -171,6 +172,56 @@ export default function StaffDashboard() {
         <Button variant="outline" className="h-14" onClick={() => navigate('/staff/leaves')}>
           <CalendarOff className="h-5 w-5" /> {t('Apply Leave', language)}
         </Button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* Upcoming Holidays */}
+        <Card>
+          <CardHeader title={t('Upcoming Holidays', language)} icon={Calendar} />
+          <CardBody className="space-y-4">
+            {data.upcomingHolidays?.length > 0 ? (
+              data.upcomingHolidays.map((h) => (
+                <div key={h._id} className="flex items-center justify-between border-b border-slate-50 pb-3 last:border-0 last:pb-0 dark:border-slate-800">
+                  <div>
+                    <p className="font-medium text-sm">{h.name}</p>
+                    <p className="text-xs text-slate-400">
+                      {dateFormat === 'BS' ? adToBs(h.startDate).formatted : formatDate(h.startDate)}
+                    </p>
+                  </div>
+                  <Badge color="blue">
+                    {Math.ceil((new Date(h.startDate) - new Date()) / 86400000)} days left
+                  </Badge>
+                </div>
+              ))
+            ) : (
+              <EmptyState title="No upcoming holidays" subtitle="Check back later" />
+            )}
+          </CardBody>
+        </Card>
+
+        {/* Recent Leave Status */}
+        <Card>
+          <CardHeader title={t('Recent Leaves', language)} />
+          <CardBody className="space-y-4">
+            {data.recentLeaves?.length > 0 ? (
+              data.recentLeaves.map((l) => (
+                <div key={l._id} className="flex items-center justify-between border-b border-slate-50 pb-3 last:border-0 last:pb-0 dark:border-slate-800">
+                  <div>
+                    <p className="font-medium text-sm">{l.type}</p>
+                    <p className="text-xs text-slate-400">
+                      {dateFormat === 'BS' ? adToBs(l.fromDate).formatted : formatDate(l.fromDate)} ({l.days} days)
+                    </p>
+                  </div>
+                  <Badge color={l.status === 'APPROVED' ? 'green' : l.status === 'REJECTED' ? 'red' : 'yellow'}>
+                    {l.status}
+                  </Badge>
+                </div>
+              ))
+            ) : (
+              <EmptyState title="No recent leaves" subtitle="Your leave history will appear here" />
+            )}
+          </CardBody>
+        </Card>
       </div>
     </div>
   );
