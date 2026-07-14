@@ -302,6 +302,12 @@ export default function App() {
         <Route path="management/payroll" element={<CompanyPayroll />} />
         <Route path="management/reports" element={<Reports />} />
         <Route path="management/configuration" element={<CompanyConfiguration />} />
+        <Route path="management/configuration/designations" element={<CompanyDesignations />} />
+        <Route path="management/configuration/branches" element={<CompanyBranches />} />
+        <Route path="management/configuration/shifts" element={<CompanyShifts />} />
+        <Route path="management/configuration/departments" element={<CompanyDepartments />} />
+        <Route path="management/configuration/leaves" element={<CompanyLeavesConfig />} />
+        <Route path="management/configuration/holidays" element={<HolidayCalendar />} />
       </Route>
 
       <Route path="*" element={<Navigate to={user ? ROLE_HOME[user.role] : '/login'} replace />} />

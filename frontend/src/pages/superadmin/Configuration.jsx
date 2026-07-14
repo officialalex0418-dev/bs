@@ -8,7 +8,7 @@ export default function Configuration() {
       title: 'Designation',
       desc: 'Manage system employee designations and access permissions',
       icon: UserCog,
-      to: '/admin/configuration/designations',
+      to: 'designations',
       color: 'text-blue-600 bg-blue-50',
     },
   ];
