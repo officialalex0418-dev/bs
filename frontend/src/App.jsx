@@ -232,8 +232,10 @@ export default function App() {
         <Route path="packages" element={<Packages />} />
         <Route path="employees" element={<SystemEmployees />} />
         <Route path="company-staff" element={<CompanyStaff />} />
-        <Route path="configuration" element={<Configuration />} />
-        <Route path="configuration/designations" element={<Designations />} />
+        <Route path="configuration">
+          <Route index element={<Configuration />} />
+          <Route path="designations" element={<Designations />} />
+        </Route>
         <Route path="audit-logs" element={<AuditLogs />} />
         <Route path="settings" element={<AdminSettings />} />
       </Route>
@@ -260,13 +262,15 @@ export default function App() {
         <Route path="payroll" element={<CompanyPayroll />} />
         <Route path="complaints" element={hasFeature('complaintChat') ? <Chat /> : <Navigate to="/company" />} />
         <Route path="reports" element={<Reports />} />
-        <Route path="configuration" element={<CompanyConfiguration />} />
-        <Route path="configuration/designations" element={<CompanyDesignations />} />
-        <Route path="configuration/branches" element={<CompanyBranches />} />
-        <Route path="configuration/shifts" element={<CompanyShifts />} />
-        <Route path="configuration/departments" element={<CompanyDepartments />} />
-        <Route path="configuration/leaves" element={<CompanyLeavesConfig />} />
-        <Route path="configuration/holidays" element={<HolidayCalendar />} />
+        <Route path="configuration">
+          <Route index element={<CompanyConfiguration />} />
+          <Route path="designations" element={<CompanyDesignations />} />
+          <Route path="branches" element={<CompanyBranches />} />
+          <Route path="shifts" element={<CompanyShifts />} />
+          <Route path="departments" element={<CompanyDepartments />} />
+          <Route path="leaves" element={<CompanyLeavesConfig />} />
+          <Route path="holidays" element={<HolidayCalendar />} />
+        </Route>
         <Route path="settings" element={<CompanySettings />} />
         <Route path="settings/edit" element={<CompanyEditProfile />} />
       </Route>
@@ -301,13 +305,15 @@ export default function App() {
         <Route path="management/vendors/:id" element={<VendorDetails />} />
         <Route path="management/payroll" element={<CompanyPayroll />} />
         <Route path="management/reports" element={<Reports />} />
-        <Route path="management/configuration" element={<CompanyConfiguration />} />
-        <Route path="management/configuration/designations" element={<CompanyDesignations />} />
-        <Route path="management/configuration/branches" element={<CompanyBranches />} />
-        <Route path="management/configuration/shifts" element={<CompanyShifts />} />
-        <Route path="management/configuration/departments" element={<CompanyDepartments />} />
-        <Route path="management/configuration/leaves" element={<CompanyLeavesConfig />} />
-        <Route path="management/configuration/holidays" element={<HolidayCalendar />} />
+        <Route path="management/configuration">
+          <Route index element={<CompanyConfiguration />} />
+          <Route path="designations" element={<CompanyDesignations />} />
+          <Route path="branches" element={<CompanyBranches />} />
+          <Route path="shifts" element={<CompanyShifts />} />
+          <Route path="departments" element={<CompanyDepartments />} />
+          <Route path="leaves" element={<CompanyLeavesConfig />} />
+          <Route path="holidays" element={<HolidayCalendar />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<Navigate to={user ? ROLE_HOME[user.role] : '/login'} replace />} />
