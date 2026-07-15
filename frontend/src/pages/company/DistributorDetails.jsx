@@ -515,6 +515,15 @@ export default function DistributorDetails() {
                     <td className="table-td font-bold text-red-600">{formatMoney(row.amount)}</td>
                   </tr>
                 )}
+                mobileRender={(row) => (
+                  <div key={row.invoiceNumber} className="p-3 border-b flex justify-between items-center">
+                    <div>
+                      <p className="text-xs font-mono text-slate-500">{row.invoiceNumber}</p>
+                      <p className="text-sm font-bold text-red-600">{formatMoney(row.amount)}</p>
+                    </div>
+                    <Badge color={row.ageDays > 30 ? 'red' : row.ageDays > 15 ? 'yellow' : 'blue'}>{row.ageDays}d</Badge>
+                  </div>
+                )}
              />
           </Card>
 
@@ -562,6 +571,20 @@ export default function DistributorDetails() {
                       {h.type === 'INVOICE' ? '+' : '-'}{formatMoney(h.amount)}
                     </td>
                   </tr>
+                )}
+                mobileRender={(h, idx) => (
+                  <div key={idx} className="p-3 border-b flex justify-between items-center text-xs">
+                    <div>
+                      <p className="font-semibold">{formatDate(h.date, dateFormat)}</p>
+                      <p className="text-slate-400">{h.ref} {h.method && `· ${h.method}`}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-bold ${h.type === 'INVOICE' ? 'text-red-600' : 'text-emerald-600'}`}>
+                         {h.type === 'INVOICE' ? '+' : '-'}{formatMoney(h.amount)}
+                      </p>
+                      <Badge color={h.type === 'INVOICE' ? 'blue' : 'green'}>{h.type}</Badge>
+                    </div>
+                  </div>
                 )}
              />
           </Card>
@@ -658,6 +681,29 @@ export default function DistributorDetails() {
                 </td>
               </tr>
             )}
+            mobileRender={(inv) => (
+              <div key={inv._id} className="p-4 border-b space-y-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-xs font-mono text-slate-500">{inv.invoiceNumber}</span>
+                    <p className="font-bold">{formatMoney(inv.netTotal)}</p>
+                    <p className="text-xs text-slate-400">{formatDate(inv.saleDate, dateFormat)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-red-600 font-bold">Due: {formatMoney(inv.balanceDue)}</p>
+                    <Badge color={inv.balanceDue <= 0 ? 'green' : 'red'}>{inv.balanceDue <= 0 ? 'PAID' : 'DUE'}</Badge>
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end pt-2">
+                  <Button size="sm" variant="outline" onClick={() => { setSelectedInvoice(inv); setModal('view-invoice'); }}>
+                    <Printer className="h-3.5 w-3.5 mr-1" /> View
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => { setEditingInvoice(inv); setModal('edit-invoice'); }}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
          />
       </Card>
 
@@ -680,12 +726,14 @@ export default function DistributorDetails() {
 
       {/* View Invoice Modal */}
       <Modal open={modal === 'view-invoice'} onClose={() => setModal(null)} title={`Invoice ${selectedInvoice?.invoiceNumber}`} wide>
-         <div className="flex justify-end gap-2 mb-4 no-print">
+         <div className="flex justify-end gap-2 mb-4 no-print px-4">
             <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="h-4 w-4 mr-2" /> Print / Download PDF</Button>
             <Button variant="outline" size="sm" onClick={() => setModal(null)}>Close</Button>
          </div>
-         <div className="bg-slate-100 p-8 rounded-xl overflow-auto max-h-[70vh]">
-            <InvoicePreview invoice={selectedInvoice} company={user?.company} distributor={distributor} dateFormat={dateFormat} />
+         <div className="preview-container max-h-[75vh] overflow-y-auto">
+            <div className="preview-scaling-wrap">
+               <InvoicePreview invoice={selectedInvoice} company={user?.company} distributor={distributor} dateFormat={dateFormat} />
+            </div>
          </div>
       </Modal>
 
