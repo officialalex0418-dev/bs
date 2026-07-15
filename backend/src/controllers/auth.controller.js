@@ -91,7 +91,10 @@ export const login = asyncHandler(async (req, res) => {
 
   audit({ req, user: user._id, company: user.company?._id, action: 'LOGIN', entity: 'Auth' });
 
-  res.cookie(REFRESH_COOKIE, refreshToken, cookieOpts);
+  res.cookie(REFRESH_COOKIE, refreshToken, {
+    ...cookieOpts,
+    maxAge: isAppRequest ? 365 * 24 * 60 * 60 * 1000 : 30 * 60 * 1000,
+  });
   res.json({
     success: true,
     data: { user: user.toSafeJSON(), accessToken, refreshToken },
@@ -132,11 +135,14 @@ export const refresh = asyncHandler(async (req, res) => {
 
   // rotate
   user.refreshTokens = user.refreshTokens.filter((t) => t.tokenHash !== tokenHash);
-  const newRefresh = signRefreshToken(user);
+  const newRefresh = signRefreshToken(user, payload.isMobile);
   await persistRefreshToken(user, newRefresh, req);
   const accessToken = signAccessToken(user);
 
-  res.cookie(REFRESH_COOKIE, newRefresh, cookieOpts);
+  res.cookie(REFRESH_COOKIE, newRefresh, {
+    ...cookieOpts,
+    maxAge: payload.isMobile ? 365 * 24 * 60 * 60 * 1000 : 30 * 60 * 1000,
+  });
   res.json({ success: true, data: { accessToken, refreshToken: newRefresh } });
 });
 

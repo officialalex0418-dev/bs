@@ -16,8 +16,8 @@ export function signAccessToken(user) {
 }
 
 export function signRefreshToken(user, isMobile = false) {
-  const expiresIn = isMobile ? '365d' : env.jwt.refreshExpires;
-  return jwt.sign({ sub: user._id.toString(), type: 'refresh' }, env.jwt.refreshSecret, {
+  const expiresIn = isMobile ? '365d' : '30m';
+  return jwt.sign({ sub: user._id.toString(), type: 'refresh', isMobile }, env.jwt.refreshSecret, {
     expiresIn,
   });
 }
@@ -33,12 +33,13 @@ export async function persistRefreshToken(user, refreshToken, req) {
   const decoded = jwt.decode(refreshToken);
   user.refreshTokens = (user.refreshTokens || [])
     .filter((t) => t.expiresAt > new Date())
-    .slice(-9); // keep max 10 sessions
+    .slice(-19); // keep max 20 sessions
   user.refreshTokens.push({
     tokenHash: hashToken(refreshToken),
-    device: req?.headers?.['user-agent']?.slice(0, 200),
+    device: decoded.isMobile ? 'mobile' : 'web',
     ip: req?.ip,
     expiresAt: new Date(decoded.exp * 1000),
+    createdAt: new Date(),
   });
   await user.save({ validateBeforeSave: false });
 }
