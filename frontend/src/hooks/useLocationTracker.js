@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import { Device } from '@capacitor/device';
 import { Network } from '@capacitor/network';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { api } from '@/api/client';
 
 const QUEUE_KEY = 'bs_location_queue';
@@ -49,6 +50,24 @@ export function useLocationTracker(enabled = true) {
       audioRef.current.currentTime = 0;
     }
     if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+  }, []);
+
+  const updateTrackingNotification = useCallback(async (isActive) => {
+    if (isActive) {
+      await LocalNotifications.schedule({
+        notifications: [{
+          id: 999,
+          title: 'Business Sarthi Tracking',
+          body: 'Your shift is active and location is being tracked.',
+          ongoing: true, // Makes it a foreground service notification
+          sticky: true,
+          channelId: 'bs_alerts',
+          smallIcon: 'ic_stat_name', // Needs to exist in android res
+        }]
+      }).catch(() => {});
+    } else {
+      await LocalNotifications.cancel({ notifications: [{ id: 999 }] }).catch(() => {});
+    }
   }, []);
 
   const capture = useCallback(async () => {
@@ -122,9 +141,11 @@ export function useLocationTracker(enabled = true) {
   useEffect(() => {
     if (!enabled) {
       stopAlert();
+      updateTrackingNotification(false);
       return;
     }
 
+    updateTrackingNotification(true);
     let cancelled = false;
 
     (async () => {

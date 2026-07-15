@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Menu, X, Moon, Sun, Bell, LogOut, ChevronDown, MapPin,
 } from 'lucide-react';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useSocket, useSocketEvent } from '@/context/SocketContext';
@@ -42,9 +43,37 @@ export default function DashboardLayout({ title, nav }) {
 
   useEffect(() => { loadNotifications(); }, [loadNotifications]);
 
+  useEffect(() => {
+    // Setup Android Notification Channel for high priority (WhatsApp-like)
+    LocalNotifications.createChannel({
+      id: 'bs_alerts',
+      name: 'Business Sarthi Alerts',
+      description: 'Critical business notifications',
+      importance: 5, // High
+      visibility: 1, // Public (shows on lock screen)
+      vibration: true,
+      sound: 'beep.wav',
+    }).catch(() => {});
+  }, []);
+
   useSocketEvent('notification:new', useCallback((n) => {
     setNotifications((prev) => [n, ...prev].slice(0, 10));
     setUnread((u) => u + 1);
+
+    // Show system notification (WhatsApp-like)
+    LocalNotifications.schedule({
+      notifications: [{
+        title: n.title || 'Business Sarthi',
+        body: n.message,
+        id: Math.floor(Math.random() * 100000),
+        schedule: { at: new Date(Date.now() + 100) },
+        sound: 'beep.wav',
+        attachments: [],
+        actionTypeId: '',
+        extra: { link: n.link },
+        channelId: 'bs_alerts',
+      }]
+    }).catch(err => console.error('Local notification error:', err));
   }, []));
 
   const markRead = async () => {
