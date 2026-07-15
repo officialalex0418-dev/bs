@@ -6,6 +6,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useSocket, useSocketEvent } from '@/context/SocketContext';
+import { useLocationTracker } from '@/hooks/useLocationTracker';
 import { api } from '@/api/client';
 import { cn, ROLE_LABELS } from '@/lib/utils';
 import { t } from '@/lib/i18n';
@@ -17,6 +18,10 @@ export default function DashboardLayout({ title, nav }) {
   const { connected } = useSocket() || {};
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Background location tracking for staff
+  const isTrackingEnabled = user?.role === 'STAFF';
+  const { isAlerting } = useLocationTracker(isTrackingEnabled);
 
   useEffect(() => {
     // Dispatch a resize event when sidebar toggles to help components like Leaflet recalculate
@@ -174,6 +179,14 @@ export default function DashboardLayout({ title, nav }) {
 
       {/* Main */}
       <div className="flex flex-1 flex-col lg:pl-64">
+        {isAlerting && (
+          <div className="bg-red-600 text-white px-4 py-2 flex items-center justify-center gap-3 animate-pulse sticky top-0 z-[60]">
+            <Bell className="h-5 w-5 animate-bounce" />
+            <span className="font-bold text-sm uppercase tracking-wider">
+              Alert: Tracking Issues! Please Enable GPS and Mobile Data.
+            </span>
+          </div>
+        )}
         {/* Topbar */}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
           <div className="flex items-center gap-3">

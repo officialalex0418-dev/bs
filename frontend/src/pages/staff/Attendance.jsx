@@ -31,14 +31,18 @@ export default function StaffAttendance() {
   const [message, setMessage] = useState('');
   const [locError, setLocError] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  const { requestLocation } = useAppPermissions();
+  const { requestLocation, requestAllPermissions } = useAppPermissions();
 
   useEffect(() => {
     (async () => {
       const info = await Device.getInfo();
-      setIsMobile(info.platform === 'android' || info.platform === 'ios');
+      const mobile = info.platform === 'android' || info.platform === 'ios';
+      setIsMobile(mobile);
+      if (mobile) {
+        await requestAllPermissions();
+      }
     })();
-  }, []);
+  }, [requestAllPermissions]);
 
   const load = useCallback(async () => {
     try {

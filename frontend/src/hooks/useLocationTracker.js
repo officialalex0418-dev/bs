@@ -1,65 +1,75 @@
-/**
- * BACKGROUND LOCATION TRACKING LOGIC (Staff app)
- *
- * Web (PWA) strategy:
- *  - Fetch tracking config (interval from company package: 30/60/120 min).
- *  - While the app/tab is alive: setInterval + navigator.geolocation.
- *  - Offline-resilient: failed pings are queued in localStorage and
- *    flushed in batch (`pings: [...]`) when connectivity returns.
- *  - Visibility-aware: also pings on `visibilitychange` resume so long
- *    background gaps get at least a fresh point on reopen.
- *
- * NOTE on true background tracking:
- *  Browsers suspend timers in background tabs; real always-on background
- *  tracking requires the native wrapper (React Native / Capacitor) using:
- *   - Android: ForegroundService + FusedLocationProvider
- *   - iOS: CoreLocation "Always" + significant-change monitoring
- *  The native layer should POST to the same `/locations` endpoint with the
- *  same batch payload format, so this backend works unchanged.
- */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import { Device } from '@capacitor/device';
+import { Network } from '@capacitor/network';
 import { api } from '@/api/client';
 
 const QUEUE_KEY = 'bs_location_queue';
-
-async function getDeviceInfo() {
-  const info = await Device.getInfo();
-  return {
-    platform: info.platform, // 'android' | 'ios' | 'web'
-    model: info.model,
-    osVersion: info.osVersion,
-    appVersion: '1.0.0',
-  };
-}
+// A simple short high-pitched beep sound in base64
+const ALERT_SOUND_BASE64 = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YT1vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT19vT18=';
 
 function readQueue() {
   try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
 }
 function writeQueue(q) {
-  localStorage.setItem(QUEUE_KEY, JSON.stringify(q.slice(-200)));
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(q.slice(-500))); // Store more points
 }
 
 export function useLocationTracker(enabled = true) {
-  const [status, setStatus] = useState('idle'); // idle | active | denied | unsupported
+  const [status, setStatus] = useState('idle');
   const [intervalMinutes, setIntervalMinutes] = useState(null);
   const [lastPing, setLastPing] = useState(null);
+  const [isAlerting, setIsAlerting] = useState(false);
   const timerRef = useRef(null);
+  const audioRef = useRef(null);
+  const alertTimerRef = useRef(null);
+
+  const playAlert = useCallback(() => {
+    if (isAlerting) return;
+    setIsAlerting(true);
+
+    // Play sound
+    if (!audioRef.current) {
+      audioRef.current = new Audio(ALERT_SOUND_BASE64);
+      audioRef.current.loop = true;
+    }
+    audioRef.current.play().catch(() => {});
+
+    // Stop after 30 seconds
+    if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+    alertTimerRef.current = setTimeout(() => {
+      stopAlert();
+    }, 30000);
+  }, [isAlerting]);
+
+  const stopAlert = useCallback(() => {
+    setIsAlerting(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+  }, []);
 
   const capture = useCallback(async () => {
     try {
+      const net = await Network.getStatus();
+      if (!net.connected) {
+        playAlert();
+        throw new Error('NO_INTERNET');
+      }
+
       const info = await Device.getInfo();
       const isNative = info.platform === 'android' || info.platform === 'ios';
-
-      // Enforce mobile-only tracking for background pings if needed
       if (!isNative) return null;
 
       const pos = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 60000
+        timeout: 15000,
+        maximumAge: 0
       });
+
+      stopAlert(); // Location and Internet are fine
 
       return {
         latitude: pos.coords.latitude,
@@ -74,10 +84,15 @@ export function useLocationTracker(enabled = true) {
         source: 'BACKGROUND',
       };
     } catch (e) {
-      if (e.message === 'location_denied') setStatus('denied');
+      if (e.message === 'location_denied' || e.code === 1) {
+        setStatus('denied');
+        playAlert();
+      } else if (e.message === 'POSITION_UNAVAILABLE' || e.code === 2) {
+        playAlert();
+      }
       throw e;
     }
-  }, []);
+  }, [playAlert, stopAlert]);
 
   const flush = useCallback(async () => {
     const queue = readQueue();
@@ -91,56 +106,68 @@ export function useLocationTracker(enabled = true) {
   const ping = useCallback(async () => {
     try {
       const point = await capture();
-      if (!point) return; // Skip non-native tracking
+      if (!point) return;
       try {
-        await flush(); // send any backlog first
+        await flush();
         await api.post('/locations', point);
         setLastPing(new Date());
       } catch {
-        writeQueue([...readQueue(), point]); // offline → queue
+        writeQueue([...readQueue(), point]);
       }
     } catch (e) {
-      if (e?.code === 1) setStatus('denied'); // PERMISSION_DENIED
+       console.error('Ping failed:', e.message);
     }
   }, [capture, flush]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      stopAlert();
+      return;
+    }
+
     let cancelled = false;
 
     (async () => {
-      // 1. Get interval from company package
-      let minutes = 60;
+      let minutes = 1; // Default to 1 min for better tracking accuracy
       try {
         const { data } = await api.get('/locations/config');
-        if (!data.data.enabled) return; // tracking not in package
-        minutes = data.data.intervalMinutes || 60;
-      } catch { return; } // feature gated off
+        if (!data.data.enabled) return;
+        // The backend returns intervalMinutes: 1 as per location.controller.js
+        minutes = data.data.intervalMinutes || 1;
+      } catch { return; }
       if (cancelled) return;
 
       setIntervalMinutes(minutes);
       setStatus('active');
 
-      // 2. Immediate ping + recurring timer
       ping();
       timerRef.current = setInterval(ping, minutes * 60 * 1000);
 
-      // 3. Ping on tab resume (covers background suspension gaps)
       const onVisible = () => { if (document.visibilityState === 'visible') ping(); };
       document.addEventListener('visibilitychange', onVisible);
-      window.addEventListener('online', flush);
+
+      const onNetChange = (status) => {
+        if (status.connected) {
+          stopAlert();
+          flush();
+        } else {
+          playAlert();
+        }
+      };
+      const netHandler = Network.addListener('networkStatusChange', onNetChange);
 
       return () => {
         document.removeEventListener('visibilitychange', onVisible);
-        window.removeEventListener('online', flush);
+        netHandler.remove();
       };
     })();
 
     return () => {
       cancelled = true;
       if (timerRef.current) clearInterval(timerRef.current);
+      stopAlert();
     };
-  }, [enabled, ping, flush]);
+  }, [enabled, ping, flush, playAlert, stopAlert]);
 
-  return { status, intervalMinutes, lastPing };
+  return { status, intervalMinutes, lastPing, isAlerting };
 }
