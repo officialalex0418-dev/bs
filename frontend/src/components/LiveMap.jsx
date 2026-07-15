@@ -29,7 +29,7 @@ function MapEffects({ points }) {
   useEffect(() => {
     if (!points || !points.length) return;
     if (points.length === 1) {
-      if (points[0].lat != null) map.setView([points[0].lat, points[0].lng], 15);
+      if (points[0].lat != null) map.setView([points[0].lat, points[0].lng], 18);
       return;
     }
     const validPoints = points.filter(p => p.lat != null);
@@ -37,7 +37,7 @@ function MapEffects({ points }) {
 
     const bounds = L.latLngBounds(validPoints.map((p) => [p.lat, p.lng]));
     if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [32, 32] });
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
     }
   }, [map, points]);
 
@@ -111,6 +111,7 @@ export default function LiveMap({ markers = [], route = [], attendance = [], hea
       // Add Check-ins for the day
       dayData.attendance.forEach((a) => {
         if (a?.checkIn?.lat != null) {
+          const checkInTime = new Date(a.checkIn.time);
           items.push({
             lat: a.checkIn.lat,
             lng: a.checkIn.lng,
@@ -121,6 +122,10 @@ export default function LiveMap({ markers = [], route = [], attendance = [], hea
             color: '#16a34a'
           });
           charCode = 66; // Next is 'B'
+          // Initialize lastMarkerTime to check-in time so 'B' follows after interval
+          if (!lastMarkerTime || checkInTime > lastMarkerTime) {
+            lastMarkerTime = checkInTime;
+          }
         }
       });
 
@@ -128,8 +133,9 @@ export default function LiveMap({ markers = [], route = [], attendance = [], hea
       dayData.points.sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt)).forEach((p) => {
         if (p?.lat != null) {
           const currentTime = new Date(p.recordedAt);
+          // Only mark B, C, D if they are at least 'markerInterval' minutes after the previous point (A or previous log)
           const shouldAddMarker = !lastMarkerTime ||
-            (currentTime - lastMarkerTime) >= (markerInterval * 60000);
+            (currentTime.getTime() - lastMarkerTime.getTime()) >= (markerInterval * 60000);
 
           if (shouldAddMarker) {
             items.push({
@@ -205,10 +211,11 @@ export default function LiveMap({ markers = [], route = [], attendance = [], hea
 
   return (
     <div ref={containerRef} className="relative w-full overflow-hidden rounded-2xl border border-slate-200 shadow-sm dark:border-slate-800" style={{ height: mapHeight, minHeight: '350px' }}>
-      <MapContainer center={[allPoints[0].lat, allPoints[0].lng]} zoom={13} style={{ width: '100%', height: '100%' }} zoomControl={true}>
+      <MapContainer center={[allPoints[0].lat, allPoints[0].lng]} zoom={13} maxZoom={20} style={{ width: '100%', height: '100%' }} zoomControl={true}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxZoom={20}
         />
         <MapEffects points={allPoints} />
 

@@ -58,9 +58,16 @@ export default function LiveTracking() {
   };
 
   const loadHeat = async () => {
-    const { data } = await api.get(`/locations/heatmap?period=${period === 'daily' ? 'daily' : period}`);
+    const { data } = await api.get(`/locations/heatmap?period=${period}&staffId=${selectedStaff}`);
     setHeat(data.data.points);
   };
+
+  const periodOptions = [
+    { value: 'daily', label: 'Today' },
+    { value: 'yesterday', label: 'Yesterday' },
+    { value: 'weekly', label: 'Last 7 days' },
+    { value: 'monthly', label: 'Last 30 days' },
+  ];
 
   if (!markers) return <Spinner />;
 
@@ -74,7 +81,7 @@ export default function LiveTracking() {
             ['route', 'Route', Route],
             ['heatmap', 'Heatmap', Flame],
           ].map(([key, label, Icon]) => (
-            <Button key={key} variant={tab === key ? 'primary' : 'outline'} size="sm" className="whitespace-nowrap" onClick={() => setTab(key)}>
+            <Button key={key} variant={tab === key ? 'primary' : 'outline'} size="sm" className="whitespace-nowrap" onClick={() => { setTab(key); setPeriod('daily'); }}>
               <Icon className="h-4 w-4" /> {label}
             </Button>
           ))}
@@ -120,7 +127,7 @@ export default function LiveTracking() {
               <Select label="Staff" value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}
                 options={[{ value: '', label: 'Select staff…' }, ...staffList.map((s) => ({ value: s._id, label: s.name }))]} className="w-56" />
               <Select label="Period" value={period} onChange={(e) => setPeriod(e.target.value)}
-                options={[{ value: 'daily', label: 'Last 24 hours' }, { value: 'weekly', label: 'Last 7 days' }, { value: 'monthly', label: 'Last 30 days' }]} className="w-44" />
+                options={periodOptions} className="w-44" />
               <Button onClick={loadRoute} disabled={!selectedStaff}>Load Route</Button>
             </div>
             {analysis && (
@@ -156,8 +163,10 @@ export default function LiveTracking() {
         <div className="space-y-4">
           <Card className="p-4">
             <div className="flex flex-wrap items-end gap-3">
+              <Select label="Staff (Optional)" value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}
+                options={[{ value: '', label: 'All Staff' }, ...staffList.map((s) => ({ value: s._id, label: s.name }))]} className="w-56" />
               <Select label="Period" value={period} onChange={(e) => setPeriod(e.target.value)}
-                options={[{ value: 'daily', label: 'Today' }, { value: 'weekly', label: 'Last 7 days' }, { value: 'monthly', label: 'Last 30 days' }]} className="w-44" />
+                options={periodOptions} className="w-44" />
               <Button onClick={loadHeat}>Load Heatmap</Button>
               <p className="pb-2 text-xs text-slate-400">{heat.length} sampled movement points</p>
             </div>

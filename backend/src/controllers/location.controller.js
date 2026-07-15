@@ -213,11 +213,13 @@ export const routeHistory = asyncHandler(async (req, res) => {
 export const heatmap = asyncHandler(async (req, res) => {
   const { start, end } = rangeFromPeriod(req.query.period || 'weekly');
   const match = { recordedAt: { $gte: start, $lte: end } };
+
   if (req.companyId) match.company = toObjectId(req.companyId);
+  if (req.query.staffId) match.staff = toObjectId(req.query.staffId);
 
   const points = await LocationLog.aggregate([
     { $match: match },
-    { $sample: { size: 3000 } }, // cap for client rendering
+    { $sample: { size: 5000 } }, // increased sample size for better heatmap
     {
       $project: {
         _id: 0,
