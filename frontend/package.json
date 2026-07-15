@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@capacitor-community/file-opener": "^8.0.1",
+    "@capacitor-community/native-biometric": "^8.0.1",
     "@capacitor/android": "^8.4.0",
     "@capacitor/camera": "^8.2.0",
     "@capacitor/cli": "^8.4.0",

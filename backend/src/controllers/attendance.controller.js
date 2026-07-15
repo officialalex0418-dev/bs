@@ -62,6 +62,23 @@ export const checkIn = asyncHandler(async (req, res) => {
   const now = new Date();
   const address = await reverseGeocode(latitude, longitude);
 
+  // 2. Shift Window Restriction (1 hour prior)
+  if (req.user.shift) {
+    const shift = await Shift.findById(req.user.shift);
+    if (shift) {
+      const now = new Date();
+      const [sh, sm] = shift.startTime.split(':').map(Number);
+      const shiftStart = new Date(now);
+      shiftStart.setHours(sh, sm, 0, 0);
+
+      const oneHourPrior = new Date(shiftStart.getTime() - 60 * 60 * 1000);
+
+      if (now < oneHourPrior) {
+        throw ApiError.badRequest(`Check-in not allowed yet. Your shift starts at ${shift.startTime}. You can check in from ${oneHourPrior.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} onwards.`);
+      }
+    }
+  }
+
   // Late detection from company settings
   const settings = req.user.company.settings || {};
   const [h, m] = (settings.workStartTime || '09:00').split(':').map(Number);

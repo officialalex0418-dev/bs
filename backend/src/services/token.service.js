@@ -15,9 +15,10 @@ export function signAccessToken(user) {
   );
 }
 
-export function signRefreshToken(user) {
+export function signRefreshToken(user, isMobile = false) {
+  const expiresIn = isMobile ? '365d' : env.jwt.refreshExpires;
   return jwt.sign({ sub: user._id.toString(), type: 'refresh' }, env.jwt.refreshSecret, {
-    expiresIn: env.jwt.refreshExpires,
+    expiresIn,
   });
 }
 

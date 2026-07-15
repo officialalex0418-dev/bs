@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { LogIn, LogOut, MapPin, AlertCircle, Settings, Fingerprint, Calendar } from 'lucide-react';
 import { api } from '@/api/client';
+import { NativeBiometric } from '@capacitor-community/native-biometric';
+import { Device } from '@capacitor/device';
 import { useAuth } from '@/context/AuthContext';
 import { useAppPermissions } from '@/hooks/useAppPermissions';
 import { Card, CardHeader, CardBody, Button, Table, Badge, Spinner } from '@/components/ui';
@@ -64,25 +66,34 @@ export default function StaffAttendance() {
   };
 
   const handleBiometric = async () => {
-    const isEnabled = localStorage.getItem(`biometric_${user?._id}`) === 'true';
-    if (!isEnabled) return true;
+    // 1. Check if we are on a native mobile device
+    const info = await Device.getInfo();
+    const isMobile = info.platform === 'android' || info.platform === 'ios';
+
+    if (!isMobile) {
+      // Fallback or skip for web
+      return true;
+    }
 
     try {
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
+      const result = await NativeBiometric.isAvailable();
+      if (!result.isAvailable) return true; // No biometrics set up, allow skip
 
-      await navigator.credentials.get({
-        publicKey: {
-          challenge,
-          timeout: 60000,
-          userVerification: "required"
-        }
+      await NativeBiometric.verifyIdentity({
+        reason: "Verify your identity for attendance",
+        title: "Attendance Verification",
+        subtitle: "Please authenticate to continue",
+        description: "Fingerprint or Face ID required",
       });
       return true;
     } catch (err) {
       console.error('Biometric verification failed', err);
-      setMessage('Biometric authentication failed. Please try again.');
-      return false;
+      // If user cancels or fails, we block
+      if (err.message?.includes('cancel') || err.message?.includes('fail')) {
+         setMessage('Biometric authentication is required to record attendance.');
+         return false;
+      }
+      return true; // Other errors (like plugin not found) - allow fallback
     }
   };
 
@@ -102,9 +113,17 @@ export default function StaffAttendance() {
         return;
       }
 
+      const deviceIdInfo = await Device.getId();
+      const deviceInfoRaw = await Device.getInfo();
+
       await api.post(`/attendance/${endpoint}`, {
         ...coords,
-        deviceInfo: { platform: 'web', model: navigator.userAgent.slice(0, 80) },
+        deviceId: deviceIdInfo.identifier,
+        deviceInfo: {
+          platform: deviceInfoRaw.platform,
+          model: `${deviceInfoRaw.manufacturer} ${deviceInfoRaw.model}`,
+          osVersion: deviceInfoRaw.osVersion
+        },
       });
       setMessage(endpoint === 'check-in' ? 'Checked in successfully ✓' : 'Checked out successfully ✓');
       load();

@@ -2,7 +2,7 @@
  * Reusable employee CRUD table.
  */
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Pencil, Trash2, FileDown, UserMinus, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileDown, UserMinus, X, RefreshCw } from 'lucide-react';
 import { api, downloadFile } from '@/api/client';
 import { Card, Button, Input, Select, Modal, Table, Badge, Spinner, Pagination } from '@/components/ui';
 import { formatMoney } from '@/lib/utils';
@@ -96,6 +96,16 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
     if (!confirm(`Deactivate ${u.name}?`)) return;
     await api.delete(`/staff/${u._id}`);
     load();
+  };
+
+  const authorizeReset = async (u) => {
+    if (!confirm(`Authorize device reset for ${u.name}? They will be able to login from a new device once.`)) return;
+    try {
+      await api.patch(`/staff/${u._id}/authorize-device-reset`);
+      alert(`Success: ${u.name} can now login from a new device.`);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Authorization failed');
+    }
   };
 
   const hardDelete = async (u) => {
@@ -193,6 +203,10 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
                   <button className="rounded p-1.5 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30" title="Deactivate"
                     onClick={() => deactivate(u)}>
                     <UserMinus className="h-4 w-4" />
+                  </button>
+                  <button className="rounded p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30" title="Reset Device"
+                    onClick={() => authorizeReset(u)}>
+                    <RefreshCw className={cn("h-4 w-4", u.deviceResetRequested && "animate-spin")} />
                   </button>
                   <button className="rounded p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30" title="Permanent Delete"
                     onClick={() => hardDelete(u)}>

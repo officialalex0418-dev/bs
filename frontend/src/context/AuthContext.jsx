@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { api, setAccessToken, getAccessToken } from '@/api/client';
+import { Device } from '@capacitor/device';
 
 const AuthContext = createContext(null);
 
@@ -32,9 +33,16 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     let deviceId = localStorage.getItem('bs_device_id');
-    if (!deviceId) {
-      deviceId = `WEB-${Math.random().toString(36).substring(2, 15)}`;
+
+    try {
+      const info = await Device.getId();
+      deviceId = info.identifier;
       localStorage.setItem('bs_device_id', deviceId);
+    } catch (e) {
+      if (!deviceId) {
+        deviceId = `WEB-${Math.random().toString(36).substring(2, 15)}`;
+        localStorage.setItem('bs_device_id', deviceId);
+      }
     }
 
     const { data } = await api.post('/auth/login', { email, password, deviceId });

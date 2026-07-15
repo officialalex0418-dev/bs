@@ -42,13 +42,9 @@ export const login = asyncHandler(async (req, res) => {
   if (!user.isActive) throw ApiError.forbidden('Account is deactivated');
   if (user.company?.status === 'SUSPENDED') throw ApiError.forbidden('Company is suspended');
 
-  // Single device login for STAFF
-  if (user.role === 'STAFF') {
-    // Device ID is mandatory for staff login (mobile app)
-    if (!deviceId) {
-      throw ApiError.badRequest('Device ID is required for staff login');
-    }
-
+  // Single device login for APP USERS (Staff & Managers)
+  const isAppRequest = !!deviceId;
+  if (isAppRequest && ['STAFF', 'COMPANY_MANAGER'].includes(user.role)) {
     if (!user.primaryDeviceId) {
       user.primaryDeviceId = deviceId;
     } else if (user.primaryDeviceId !== deviceId) {
@@ -59,35 +55,16 @@ export const login = asyncHandler(async (req, res) => {
       } else {
         throw ApiError.forbidden(user.deviceResetRequested
           ? 'Device reset request is pending approval.'
-          : 'Login allowed on primary device only. Please request a device reset from your company.');
+          : 'Security: You are already logged in on another device. Please request a device reset from your company administrator to switch devices.');
       }
     }
 
-    // 1. Force logout other devices
+    // Force logout other sessions for this user on login
     user.refreshTokens = [];
-
-    // 2. Auto-checkout if already checked in on another device
-    const today = todayStr();
-    const activeAtt = await Attendance.findOne({
-      staff: user._id,
-      date: today,
-      'checkIn.time': { $exists: true },
-      'checkOut.time': { $exists: false }
-    });
-
-    if (activeAtt) {
-      activeAtt.checkOut = {
-        time: new Date(),
-        deviceInfo: { platform: 'SYSTEM', model: 'Single-Device Force Checkout' }
-      };
-      const diff = Math.round((activeAtt.checkOut.time - activeAtt.checkIn.time) / 60000);
-      activeAtt.workedMinutes = diff > 0 ? diff : 0;
-      await activeAtt.save();
-    }
   }
 
   const accessToken = signAccessToken(user);
-  const refreshToken = signRefreshToken(user);
+  const refreshToken = signRefreshToken(user, isAppRequest);
   await persistRefreshToken(user, refreshToken, req);
 
   user.lastLoginAt = new Date();
