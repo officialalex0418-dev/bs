@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, Pencil, Trash2, FileDown, UserMinus, X, RefreshCw } from 'lucide-react';
 import { api, downloadFile } from '@/api/client';
 import { Card, Button, Input, Select, Modal, Table, Badge, Spinner, Pagination } from '@/components/ui';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, cn } from '@/lib/utils';
 
 const emptyForm = {
   name: '', email: '', phone: '', address: '', pan: '', position: '',
