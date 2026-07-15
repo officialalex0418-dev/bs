@@ -8,7 +8,7 @@ import { formatDateTime, formatTime, toLocalDateString } from '@/lib/utils';
 
 const DEFAULT_CENTER = { lat: 27.7172, lng: 85.324 }; // Kathmandu
 
-function MapEffects({ points }) {
+function MapEffects({ points, focusedId, markers }) {
   const map = useMap();
 
   useEffect(() => {
@@ -27,6 +27,16 @@ function MapEffects({ points }) {
   }, [map]);
 
   useEffect(() => {
+    // Priority 1: If a specific staff is focused, zoom in deep (5m equivalent)
+    if (focusedId && markers?.length) {
+      const target = markers.find(m => m.staffId === focusedId);
+      if (target && target.lat != null) {
+        map.setView([target.lat, target.lng], 19, { animate: true }); // Level 19-20 is very deep zoom
+        return;
+      }
+    }
+
+    // Priority 2: General point fitting
     if (!points || !points.length) return;
     if (points.length === 1) {
       if (points[0].lat != null) map.setView([points[0].lat, points[0].lng], 18);
@@ -39,12 +49,12 @@ function MapEffects({ points }) {
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
     }
-  }, [map, points]);
+  }, [map, points, focusedId, markers]);
 
   return null;
 }
 
-export default function LiveMap({ markers = [], route = [], attendance = [], heatPoints = [], markerInterval = 60, height }) {
+export default function LiveMap({ markers = [], route = [], attendance = [], heatPoints = [], markerInterval = 60, height, focusedId, onMarkerClick }) {
   const containerRef = useRef(null);
 
   const avatarIcon = useCallback((item, selected = false) => {
@@ -217,7 +227,7 @@ export default function LiveMap({ markers = [], route = [], attendance = [], hea
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           maxZoom={20}
         />
-        <MapEffects points={allPoints} />
+        <MapEffects points={allPoints} focusedId={focusedId} markers={markers} />
 
         {route.length > 1 && (
           <Polyline
@@ -236,7 +246,14 @@ export default function LiveMap({ markers = [], route = [], attendance = [], hea
         ))}
 
         {markers.map((marker) => (
-          <Marker key={marker.staffId} position={[marker.lat, marker.lng]} icon={avatarIcon(marker)}>
+          <Marker
+            key={marker.staffId}
+            position={[marker.lat, marker.lng]}
+            icon={avatarIcon(marker, focusedId === marker.staffId)}
+            eventHandlers={{
+              click: () => onMarkerClick?.(marker)
+            }}
+          >
             <Popup>
               <div className="space-y-1 text-slate-900">
                 <p className="font-semibold text-sm">{marker.name}</p>

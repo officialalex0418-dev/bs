@@ -12,6 +12,7 @@ export default function LiveTracking() {
   const dateFormat = user?.company?.settings?.dateFormat || 'BS';
   const [tab, setTab] = useState('live'); // live | route | heatmap
   const [markers, setMarkers] = useState(null);
+  const [focusedStaffId, setFocusedStaffId] = useState(null);
   const [staffList, setStaffList] = useState([]);
   const [selectedStaff, setSelectedStaff] = useState('');
   const [routeData, setRouteData] = useState({ points: [], attendance: [], packageInterval: 60 });
@@ -91,7 +92,11 @@ export default function LiveTracking() {
       {tab === 'live' && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
-              <LiveMap markers={activeMarkers} />
+              <LiveMap
+                markers={activeMarkers}
+                focusedId={focusedStaffId}
+                onMarkerClick={(m) => setFocusedStaffId(m.staffId)}
+              />
           </div>
           <Card>
             <CardHeader title={`Active Staff (${activeMarkers.length})`}
@@ -99,7 +104,15 @@ export default function LiveTracking() {
             <CardBody className="max-h-[420px] space-y-3 overflow-y-auto">
               {activeMarkers.length === 0 && <p className="text-sm text-slate-400">No location pings in the last 24h.</p>}
               {activeMarkers.map((m) => (
-                <div key={m.staffId} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+                <div
+                  key={m.staffId}
+                  className={`cursor-pointer rounded-lg border p-3 transition-all ${
+                    focusedStaffId === m.staffId
+                      ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500 dark:bg-primary-900/10'
+                      : 'border-slate-200 hover:border-slate-300 dark:border-slate-800'
+                  }`}
+                  onClick={() => setFocusedStaffId(m.staffId)}
+                >
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                       {m.profilePhoto ? <img src={m.profilePhoto} alt={m.name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-500">{(m.name || '?').slice(0, 1)}</div>}
