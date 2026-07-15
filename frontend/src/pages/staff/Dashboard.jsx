@@ -47,15 +47,21 @@ export default function StaffDashboard() {
     }
   }, []);
 
+  useEffect(() => { load(); }, [load]);
+
   const [bioAvailable, setBioAvailable] = useState(false);
   const [bioActive, setBioActive] = useState(localStorage.getItem(`biometric_${user?._id}`) === 'true');
 
   useEffect(() => {
     (async () => {
-      const info = await Device.getInfo();
-      if (info.platform === 'android' || info.platform === 'ios') {
-        const res = await NativeBiometric.isAvailable();
-        setBioAvailable(res.isAvailable);
+      try {
+        const info = await Device.getInfo();
+        if (info.platform === 'android' || info.platform === 'ios') {
+          const res = await NativeBiometric.isAvailable();
+          setBioAvailable(res.isAvailable);
+        }
+      } catch (e) {
+        console.warn('Biometric availability check failed', e);
       }
     })();
   }, [user?._id]);
