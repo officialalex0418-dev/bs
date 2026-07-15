@@ -117,7 +117,7 @@ const staffNavBase = [
 
 export default function App() {
   const { user, loading } = useAuth();
-  const { requestLocation, requestCamera, requestFiles, requestNotifications } = useAppPermissions();
+  const { requestAllPermissions } = useAppPermissions();
 
   const hasFeature = (feature) => {
     if (['SUPER_ADMIN', 'ADMIN_EMPLOYEE'].includes(user?.role)) return true;
@@ -200,14 +200,8 @@ export default function App() {
   });
 
   useEffect(() => {
-    const initPermissions = async () => {
-      await requestLocation();
-      await requestCamera();
-      await requestFiles();
-      await requestNotifications();
-    };
-    initPermissions();
-  }, [requestLocation, requestCamera, requestFiles, requestNotifications]);
+    requestAllPermissions();
+  }, [requestAllPermissions]);
 
   if (loading) return <Spinner />;
 
