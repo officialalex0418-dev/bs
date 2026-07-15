@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarCheck, CalendarOff, Target, Clock as ClockIcon, MapPin, AlertTriangle, MessageSquare, Mail, Phone, Building2, Calendar } from 'lucide-react';
+import { CalendarCheck, CalendarOff, Target, Clock as ClockIcon, MapPin, AlertTriangle, MessageSquare, Mail, Phone, Building2, Calendar, Fingerprint } from 'lucide-react';
 import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts';
 import { api } from '@/api/client';
+import { NativeBiometric } from '@capgo/capacitor-native-biometric';
+import { Device } from '@capacitor/device';
 import { useAuth } from '@/context/AuthContext';
 import { useLocationTracker } from '@/hooks/useLocationTracker';
 import { Card, CardHeader, CardBody, Spinner, Badge, Button, EmptyState } from '@/components/ui';
-import { formatMoney, formatTime, formatDate } from '@/lib/utils';
+import { formatMoney, formatTime, formatDate, cn } from '@/lib/utils';
 import { adToBs } from '@/lib/nepaliDate';
 import { t } from '@/lib/i18n';
 import LiveClock from '@/components/Clock';
@@ -45,7 +47,36 @@ export default function StaffDashboard() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const [bioAvailable, setBioAvailable] = useState(false);
+  const [bioActive, setBioActive] = useState(localStorage.getItem(`biometric_${user?._id}`) === 'true');
+
+  useEffect(() => {
+    (async () => {
+      const info = await Device.getInfo();
+      if (info.platform === 'android' || info.platform === 'ios') {
+        const res = await NativeBiometric.isAvailable();
+        setBioAvailable(res.isAvailable);
+      }
+    })();
+  }, [user?._id]);
+
+  const toggleBiometric = async () => {
+    if (!bioActive) {
+      try {
+        await NativeBiometric.verifyIdentity({
+          reason: "Enable biometric for attendance",
+          title: "Verify Identity",
+        });
+        localStorage.setItem(`biometric_${user?._id}`, 'true');
+        setBioActive(true);
+      } catch (e) {
+        console.error('Biometric verification failed', e);
+      }
+    } else {
+      localStorage.removeItem(`biometric_${user?._id}`);
+      setBioActive(false);
+    }
+  };
 
   if (error) return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -223,6 +254,26 @@ export default function StaffDashboard() {
           </CardBody>
         </Card>
       </div>
+
+      {/* Biometric settings for mobile */}
+      {bioAvailable && (
+        <Card className="p-4 bg-slate-50 dark:bg-slate-800/50 border-dashed">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={cn("p-2 rounded-full", bioActive ? "bg-primary-100 text-primary-600" : "bg-slate-200 text-slate-500")}>
+                <Fingerprint className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Biometric Authentication</p>
+                <p className="text-xs text-slate-500">{bioActive ? 'Enabled for secure check-in' : 'Enable Fingerprint/Face ID'}</p>
+              </div>
+            </div>
+            <Button variant={bioActive ? "outline" : "primary"} size="sm" onClick={toggleBiometric}>
+              {bioActive ? 'Disable' : 'Enable'}
+            </Button>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

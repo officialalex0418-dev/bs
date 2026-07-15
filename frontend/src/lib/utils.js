@@ -59,13 +59,17 @@ export const toLocalDateString = (d) => {
   return `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
 };
 
-export const formatTime = (d) =>
-  d ? new Date(d).toLocaleTimeString('en-US', {
+export const formatTime = (d) => {
+  if (!d) return '—';
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return '—';
+  return date.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
     timeZone: 'Asia/Kathmandu'
-  }) : '—';
+  });
+};
 
 export const formatDateTime = (d, format = 'AD') => {
   if (!d) return '—';

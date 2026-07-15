@@ -70,10 +70,8 @@ export default function StaffAttendance() {
     const info = await Device.getInfo();
     const isMobile = info.platform === 'android' || info.platform === 'ios';
 
-    if (!isMobile) {
-      // Fallback or skip for web
-      return true;
-    }
+    const isActivePref = localStorage.getItem(`biometric_${user?._id}`) === 'true';
+    if (!isActivePref) return true;
 
     try {
       const result = await NativeBiometric.isAvailable();
