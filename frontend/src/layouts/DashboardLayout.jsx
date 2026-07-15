@@ -204,83 +204,85 @@ export default function DashboardLayout({ title, nav }) {
           ))}
         </nav>
       </aside>
-      {sidebarOpen && <div className="fixed inset-0 z-[55] bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {sidebarOpen && <div className="fixed inset-0 z-[1050] bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* Main */}
       <div className="flex flex-1 flex-col lg:pl-64">
-        {isAlerting && (
-          <div className="bg-red-600 text-white px-4 py-2 flex items-center justify-center gap-3 animate-pulse sticky top-0 z-[60]">
-            <Bell className="h-5 w-5 animate-bounce" />
-            <span className="font-bold text-sm uppercase tracking-wider">
-              Alert: Tracking Issues! Please Enable GPS and Mobile Data.
-            </span>
-          </div>
-        )}
-        {/* Topbar */}
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
-          <div className="flex items-center gap-3">
-            <button className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden" onClick={() => setSidebarOpen(true)}>
-              <Menu className="h-5 w-5" />
-            </button>
-            <span className={cn('hidden items-center gap-1.5 text-xs sm:flex', connected ? 'text-emerald-500' : 'text-slate-400')}>
-              <span className={cn('h-2 w-2 rounded-full', connected ? 'bg-emerald-500' : 'bg-slate-400')} />
-              {connected ? 'Live' : 'Offline'}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button onClick={toggle} className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800">
-              {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
-
-            {/* Notifications */}
-            <div className="relative">
-              <button onClick={markRead} className="relative rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800">
-                <Bell className="h-5 w-5" />
-                {unread > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                    {unread}
-                  </span>
-                )}
+        <div className="sticky top-0 z-[1001]">
+          {isAlerting && (
+            <div className="bg-red-600 text-white px-4 py-2 flex items-center justify-center gap-3 animate-pulse">
+              <Bell className="h-5 w-5 animate-bounce" />
+              <span className="font-bold text-sm uppercase tracking-wider">
+                Alert: Tracking Issues! Please Enable GPS and Mobile Data.
+              </span>
+            </div>
+          )}
+          {/* Topbar */}
+          <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
+            <div className="flex items-center gap-3">
+              <button className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden" onClick={() => setSidebarOpen(true)}>
+                <Menu className="h-5 w-5" />
               </button>
-              {notifOpen && (
-                <div className="absolute right-0 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900">
-                  <p className="border-b border-slate-200 px-4 py-3 text-sm font-semibold dark:border-slate-800">Notifications</p>
-                  <div className="max-h-80 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                      <p className="px-4 py-8 text-center text-sm text-slate-400">No notifications</p>
-                    ) : notifications.map((n) => (
-                      <div
-                        key={n._id}
-                        onClick={() => handleNotificationClick(n)}
-                        className="cursor-pointer border-b border-slate-100 px-4 py-3 transition hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50"
-                      >
-                        <p className="text-sm font-medium">{n.title}</p>
-                        <p className="text-xs text-slate-500">{n.message}</p>
-                        <p className="mt-1 text-[10px] text-slate-400">{new Date(n.createdAt).toLocaleString()}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <span className={cn('hidden items-center gap-1.5 text-xs sm:flex', connected ? 'text-emerald-500' : 'text-slate-400')}>
+                <span className={cn('h-2 w-2 rounded-full', connected ? 'bg-emerald-500' : 'bg-slate-400')} />
+                {connected ? 'Live' : 'Offline'}
+              </span>
             </div>
 
-            {/* User menu */}
-            <div className="flex items-center gap-1 sm:gap-2">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">
-                {user?.name?.[0]?.toUpperCase()}
+            <div className="flex items-center gap-2">
+              <button onClick={toggle} className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800">
+                {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </button>
+
+              {/* Notifications */}
+              <div className="relative">
+                <button onClick={markRead} className="relative rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800">
+                  <Bell className="h-5 w-5" />
+                  {unread > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {unread}
+                    </span>
+                  )}
+                </button>
+                {notifOpen && (
+                  <div className="absolute right-0 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900">
+                    <p className="border-b border-slate-200 px-4 py-3 text-sm font-semibold dark:border-slate-800">Notifications</p>
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <p className="px-4 py-8 text-center text-sm text-slate-400">No notifications</p>
+                      ) : notifications.map((n) => (
+                        <div
+                          key={n._id}
+                          onClick={() => handleNotificationClick(n)}
+                          className="cursor-pointer border-b border-slate-100 px-4 py-3 transition hover:bg-slate-50 last:border-0 dark:border-slate-800 dark:hover:bg-slate-800/50"
+                        >
+                          <p className="text-sm font-medium">{n.title}</p>
+                          <p className="text-xs text-slate-500">{n.message}</p>
+                          <p className="mt-1 text-[10px] text-slate-400">{new Date(n.createdAt).toLocaleString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="hidden text-left md:block">
-                <p className="text-sm font-medium leading-tight">{user?.name}</p>
-                <p className="text-[10px] text-slate-400">{ROLE_LABELS[user?.role]}</p>
+
+              {/* User menu */}
+              <div className="flex items-center gap-1 sm:gap-2">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">
+                  {user?.name?.[0]?.toUpperCase()}
+                </div>
+                <div className="hidden text-left md:block">
+                  <p className="text-sm font-medium leading-tight">{user?.name}</p>
+                  <p className="text-[10px] text-slate-400">{ROLE_LABELS[user?.role]}</p>
+                </div>
+                <ChevronDown className="hidden h-4 w-4 text-slate-400 md:block" />
               </div>
-              <ChevronDown className="hidden h-4 w-4 text-slate-400 md:block" />
+              <button onClick={handleLogout} title={t('Logout', language)} className="rounded-lg p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30">
+                <LogOut className="h-5 w-5" />
+              </button>
             </div>
-            <button onClick={handleLogout} title={t('Logout', language)} className="rounded-lg p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30">
-              <LogOut className="h-5 w-5" />
-            </button>
-          </div>
-        </header>
+          </header>
+        </div>
 
         <main className="flex-1 p-4 lg:p-6">
           <Outlet />
