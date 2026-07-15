@@ -112,11 +112,16 @@ export default function LiveMap({ markers = [], route = [], attendance = [], hea
     });
 
     const sortedDays = Object.keys(days).sort();
+    const isMultiDay = sortedDays.length > 1;
 
-    sortedDays.forEach((day) => {
+    sortedDays.forEach((day, dayIdx) => {
       const dayData = days[day];
       let charCode = 65; // 'A'
       let lastMarkerTime = null;
+
+      // For multi-day view, prefix labels with day number (1A, 1B, 2A...)
+      // Day 1 is the earliest date
+      const dayPrefix = isMultiDay ? `${dayIdx + 1}` : '';
 
       // Add Check-ins for the day
       dayData.attendance.forEach((a) => {
@@ -125,14 +130,13 @@ export default function LiveMap({ markers = [], route = [], attendance = [], hea
           items.push({
             lat: a.checkIn.lat,
             lng: a.checkIn.lng,
-            label: 'A',
+            label: `${dayPrefix}A`,
             time: a.checkIn.time,
             address: a.checkIn.address,
             type: `Check-In (${day})`,
             color: '#16a34a'
           });
           charCode = 66; // Next is 'B'
-          // Initialize lastMarkerTime to check-in time so 'B' follows after interval
           if (!lastMarkerTime || checkInTime > lastMarkerTime) {
             lastMarkerTime = checkInTime;
           }
@@ -143,7 +147,6 @@ export default function LiveMap({ markers = [], route = [], attendance = [], hea
       dayData.points.sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt)).forEach((p) => {
         if (p?.lat != null) {
           const currentTime = new Date(p.recordedAt);
-          // Only mark B, C, D if they are at least 'markerInterval' minutes after the previous point (A or previous log)
           const shouldAddMarker = !lastMarkerTime ||
             (currentTime.getTime() - lastMarkerTime.getTime()) >= (markerInterval * 60000);
 
@@ -151,7 +154,7 @@ export default function LiveMap({ markers = [], route = [], attendance = [], hea
             items.push({
               lat: p.lat,
               lng: p.lng,
-              label: String.fromCharCode(charCode),
+              label: `${dayPrefix}${String.fromCharCode(charCode)}`,
               time: p.recordedAt,
               address: p.address,
               type: `Location Ping (${day})`,
@@ -170,7 +173,7 @@ export default function LiveMap({ markers = [], route = [], attendance = [], hea
           items.push({
             lat: a.checkOut.lat,
             lng: a.checkOut.lng,
-            label: 'OUT',
+            label: isMultiDay ? `${dayPrefix}OUT` : 'OUT',
             time: a.checkOut.time,
             address: a.checkOut.address,
             type: `Check-Out (${day})`,
