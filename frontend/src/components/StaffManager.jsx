@@ -264,6 +264,9 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
                 <Button variant="outline" size="sm" className="text-amber-600" onClick={() => deactivate(u)}>
                   <UserMinus className="h-4 w-4 mr-1" /> Deactivate
                 </Button>
+                <Button variant="outline" size="sm" className="text-blue-600" onClick={() => authorizeReset(u)}>
+                  <RefreshCw className={cn("h-4 w-4 mr-1", u.deviceResetRequested && "animate-spin")} /> Reset Device
+                </Button>
                 <Button variant="danger" size="sm" onClick={() => hardDelete(u)}>
                   <Trash2 className="h-4 w-4 mr-1" /> Delete
                 </Button>
