@@ -59,6 +59,9 @@ export default function StaffDashboard() {
         if (info.platform === 'android' || info.platform === 'ios') {
           const res = await NativeBiometric.isAvailable();
           setBioAvailable(res.isAvailable);
+        } else if (window.PublicKeyCredential) {
+          const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+          setBioAvailable(available);
         }
       } catch (e) {
         console.warn('Biometric availability check failed', e);
@@ -69,10 +72,26 @@ export default function StaffDashboard() {
   const toggleBiometric = async () => {
     if (!bioActive) {
       try {
-        await NativeBiometric.verifyIdentity({
-          reason: "Enable biometric for attendance",
-          title: "Verify Identity",
-        });
+        const info = await Device.getInfo();
+        if (info.platform === 'android' || info.platform === 'ios') {
+          await NativeBiometric.verifyIdentity({
+            reason: "Enable biometric for attendance",
+            title: "Verify Identity",
+          });
+        } else if (window.PublicKeyCredential) {
+          const challenge = new Uint8Array(32);
+          window.crypto.getRandomValues(challenge);
+          await navigator.credentials.create({
+            publicKey: {
+              challenge,
+              rp: { name: "Business Sarthi" },
+              user: { id: Uint8Array.from(user._id || 'user', c => c.charCodeAt(0)), name: user.email, displayName: user.name },
+              pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+              authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+              timeout: 60000
+            }
+          });
+        }
         localStorage.setItem(`biometric_${user?._id}`, 'true');
         setBioActive(true);
       } catch (e) {
@@ -201,6 +220,26 @@ export default function StaffDashboard() {
         </CardBody>
       </Card>
 
+      {/* Biometric settings for mobile & web */}
+      {bioAvailable && (
+        <Card className="p-4 bg-primary-50 dark:bg-primary-900/10 border-primary-100 dark:border-primary-900/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={cn("p-2 rounded-full", bioActive ? "bg-primary-600 text-white" : "bg-slate-200 text-slate-500")}>
+                <Fingerprint className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-bold text-sm">Biometric Login</p>
+                <p className="text-xs text-slate-500">{bioActive ? 'Fingerprint/Face ID is active' : 'Secure your attendance with Biometrics'}</p>
+              </div>
+            </div>
+            <Button variant={bioActive ? "outline" : "primary"} size="sm" onClick={toggleBiometric}>
+              {bioActive ? 'Disable' : 'Enable Now'}
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-4">
         <Button className="h-14" onClick={() => navigate('/staff/attendance')}>
@@ -260,26 +299,6 @@ export default function StaffDashboard() {
           </CardBody>
         </Card>
       </div>
-
-      {/* Biometric settings for mobile */}
-      {bioAvailable && (
-        <Card className="p-4 bg-slate-50 dark:bg-slate-800/50 border-dashed">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={cn("p-2 rounded-full", bioActive ? "bg-primary-100 text-primary-600" : "bg-slate-200 text-slate-500")}>
-                <Fingerprint className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">Biometric Authentication</p>
-                <p className="text-xs text-slate-500">{bioActive ? 'Enabled for secure check-in' : 'Enable Fingerprint/Face ID'}</p>
-              </div>
-            </div>
-            <Button variant={bioActive ? "outline" : "primary"} size="sm" onClick={toggleBiometric}>
-              {bioActive ? 'Disable' : 'Enable'}
-            </Button>
-          </div>
-        </Card>
-      )}
     </div>
   );
 }

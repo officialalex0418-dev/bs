@@ -1,56 +1,63 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Lock, User, Phone, MapPin, Mail, ShieldCheck, Briefcase, Fingerprint, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Pencil, Lock, User, Phone, MapPin, Mail, ShieldCheck, Briefcase, Fingerprint, ToggleLeft, ToggleRight, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/api/client';
+import { NativeBiometric } from '@capgo/capacitor-native-biometric';
+import { Device } from '@capacitor/device';
 import { Card, Button, Badge } from '@/components/ui';
+import { cn } from '@/lib/utils';
 
 export default function StaffProfile() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(localStorage.getItem(`biometric_${user?._id}`) === 'true');
   const [biometricSupported, setBiometricSupported] = useState(false);
 
   useEffect(() => {
-    const checkBiometric = async () => {
-      if (window.PublicKeyCredential) {
-        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-        setBiometricSupported(available);
+    (async () => {
+      try {
+        const info = await Device.getInfo();
+        if (info.platform === 'android' || info.platform === 'ios') {
+          const res = await NativeBiometric.isAvailable();
+          setBiometricSupported(res.isAvailable);
+        } else if (window.PublicKeyCredential) {
+          const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+          setBiometricSupported(available);
+        }
+      } catch (e) {
+        console.warn('Biometric check failed', e);
       }
-    };
-    checkBiometric();
-    setBiometricEnabled(localStorage.getItem(`biometric_${user?._id}`) === 'true');
+    })();
   }, [user?._id]);
 
   const toggleBiometric = async () => {
     if (!biometricEnabled) {
-      // Try to "test" biometric before enabling
       try {
-        const challenge = new Uint8Array(32);
-        window.crypto.getRandomValues(challenge);
-
-        // Use a simple registration-like call to trigger biometric prompt
-        // Note: This is a client-side only implementation for device lock verification
-        await navigator.credentials.create({
-          publicKey: {
-            challenge,
-            rp: { name: "Business Sarthi" },
-            user: {
-              id: Uint8Array.from(user._id, c => c.charCodeAt(0)),
-              name: user.email,
-              displayName: user.name
-            },
-            pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
-            authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
-            timeout: 60000
-          }
-        });
-
+        const info = await Device.getInfo();
+        if (info.platform === 'android' || info.platform === 'ios') {
+          await NativeBiometric.verifyIdentity({
+            reason: "Enable biometric for attendance",
+            title: "Verify Identity",
+          });
+        } else if (window.PublicKeyCredential) {
+          const challenge = new Uint8Array(32);
+          window.crypto.getRandomValues(challenge);
+          await navigator.credentials.create({
+            publicKey: {
+              challenge,
+              rp: { name: "Business Sarthi" },
+              user: { id: Uint8Array.from(user._id || 'user', c => c.charCodeAt(0)), name: user.email, displayName: user.name },
+              pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+              authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+              timeout: 60000
+            }
+          });
+        }
         localStorage.setItem(`biometric_${user?._id}`, 'true');
         setBiometricEnabled(true);
       } catch (err) {
         console.error('Biometric registration failed', err);
-        alert('Could not enable biometric. Please ensure your device supports FaceID/Fingerprint and it is set up.');
       }
     } else {
       localStorage.removeItem(`biometric_${user?._id}`);
@@ -134,20 +141,31 @@ export default function StaffProfile() {
       </Card>
 
       {biometricSupported && (
-        <Card>
+        <Card className="border-primary-100 bg-primary-50/30 dark:border-primary-900/20">
           <div className="p-6">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <h3 className="text-lg font-bold mb-1 flex items-center gap-2 text-primary-900 dark:text-primary-100">
               <Fingerprint className="h-5 w-5 text-primary-600" />
-              Biometric Settings
+              Biometric Authentication
             </h3>
-            <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50">
-              <div>
-                <p className="font-medium">Biometric Check-in/out</p>
-                <p className="text-sm text-slate-500">Use FaceID or Fingerprint for attendance</p>
+            <p className="text-sm text-slate-500 mb-4">Secure your attendance logs with Face ID or Fingerprint.</p>
+
+            <div className="flex items-center justify-between p-4 rounded-xl border border-white bg-white/50 shadow-sm dark:border-slate-800 dark:bg-slate-900/50">
+              <div className="flex items-center gap-3">
+                {biometricEnabled ? (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                ) : (
+                  <div className="h-5 w-5 rounded-full border-2 border-slate-200" />
+                )}
+                <span className="font-medium text-slate-700 dark:text-slate-200">
+                  {biometricEnabled ? 'Biometric verification is active' : 'Biometric verification is disabled'}
+                </span>
               </div>
               <button
                 onClick={toggleBiometric}
-                className={`flex items-center transition-colors ${biometricEnabled ? 'text-primary-600' : 'text-slate-300'}`}
+                className={cn(
+                  "flex items-center transition-all duration-300",
+                  biometricEnabled ? 'text-primary-600' : 'text-slate-300 hover:text-slate-400'
+                )}
               >
                 {biometricEnabled ? <ToggleRight className="h-10 w-10" /> : <ToggleLeft className="h-10 w-10" />}
               </button>
