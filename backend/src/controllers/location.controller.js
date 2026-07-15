@@ -154,14 +154,21 @@ export const liveLocations = asyncHandler(async (req, res) => {
   });
 });
 
-/** GET /locations/history/:staffId?from=&to= — route history / playback */
+/** GET /locations/history/:staffId?from=&to=&period= — route history / playback */
 export const routeHistory = asyncHandler(async (req, res) => {
   const staff = await User.findById(req.params.staffId);
   if (!staff) throw ApiError.notFound('Staff not found');
   assertScope(req, staff);
 
-  const from = req.query.from ? new Date(req.query.from) : new Date(Date.now() - 24 * 3600 * 1000);
-  const to = req.query.to ? new Date(req.query.to) : new Date();
+  let from, to;
+  if (req.query.period) {
+    const range = rangeFromPeriod(req.query.period);
+    from = range.start;
+    to = range.end;
+  } else {
+    from = req.query.from ? new Date(req.query.from) : new Date(Date.now() - 24 * 3600 * 1000);
+    to = req.query.to ? new Date(req.query.to) : new Date();
+  }
 
   const [logs, attendance] = await Promise.all([
     LocationLog.find({
@@ -170,18 +177,33 @@ export const routeHistory = asyncHandler(async (req, res) => {
     }).sort('recordedAt').limit(5000).lean(),
     Attendance.find({
       staff: staff._id,
-      $or: [
-        { 'checkIn.time': { $gte: from, $lte: to } },
-        { 'checkOut.time': { $gte: from, $lte: to } }
-      ]
+      date: {
+        $gte: from.toISOString().split('T')[0],
+        $lte: to.toISOString().split('T')[0]
+      }
     }).sort('date').lean()
   ]);
+
+  // Filter logs to only include those between check-in and check-out for each day
+  const filteredPoints = logs.filter(log => {
+    const logDate = log.recordedAt.toISOString().split('T')[0];
+    const dailyAttendance = attendance.find(a => a.date === logDate);
+
+    if (!dailyAttendance || !dailyAttendance.checkIn?.time) return false;
+
+    const checkInTime = new Date(dailyAttendance.checkIn.time);
+    const checkOutTime = dailyAttendance.checkOut?.time
+      ? new Date(dailyAttendance.checkOut.time)
+      : (logDate === new Date().toISOString().split('T')[0] ? new Date() : new Date(new Date(logDate).setHours(23, 59, 59, 999)));
+
+    return log.recordedAt >= checkInTime && log.recordedAt <= checkOutTime;
+  });
 
   res.json({
     success: true,
     data: {
       staff: { id: staff._id, name: staff.name },
-      points: logs.map((l) => ({
+      points: filteredPoints.map((l) => ({
         lat: l.location.coordinates[1],
         lng: l.location.coordinates[0],
         address: l.address,

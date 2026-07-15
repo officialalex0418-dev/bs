@@ -44,10 +44,8 @@ export default function LiveTracking() {
 
   const loadRoute = async () => {
     if (!selectedStaff) return;
-    const dayMs = { daily: 1, weekly: 7, monthly: 30 }[period] * 86400000;
-    const from = new Date(Date.now() - dayMs).toISOString();
     const [r, a] = await Promise.all([
-      api.get(`/locations/history/${selectedStaff}?from=${from}`),
+      api.get(`/locations/history/${selectedStaff}?period=${period}`),
       api.get(`/locations/analysis/${selectedStaff}?period=${period}`),
     ]);
     setRouteData({
