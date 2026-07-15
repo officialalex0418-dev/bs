@@ -48,6 +48,7 @@ export const createStaff = asyncHandler(async (req, res) => {
   const {
     name, email, phone, address, pan, position,
     basicSalary, dailyAllowance, allowances, role, designation, shift, companyId, monthlyTarget, workMode, branch,
+    allowedMobileCount, allowedWebCount,
   } = req.body;
 
   if (await User.findOne({ email })) throw ApiError.conflict('Email already in use');
@@ -104,6 +105,8 @@ export const createStaff = asyncHandler(async (req, res) => {
     company: targetCompany,
     workMode: workMode || 'OUTDOOR',
     branch: branch || null,
+    allowedMobileCount: allowedMobileCount || 1,
+    allowedWebCount: allowedWebCount || 1,
     password: tempPassword,
     needsPasswordChange: true,
   });
@@ -134,7 +137,8 @@ export const updateStaff = asyncHandler(async (req, res) => {
   assertSameCompanyOrPlatform(req, user);
 
   const allowed = ['name', 'phone', 'address', 'pan', 'position', 'basicSalary',
-    'dailyAllowance', 'allowances', 'monthlyTarget', 'isActive', 'subRole', 'designation', 'shift', 'profilePhoto', 'leaveBalance', 'role', 'workMode', 'branch'];
+    'dailyAllowance', 'allowances', 'monthlyTarget', 'isActive', 'subRole', 'designation', 'shift', 'profilePhoto', 'leaveBalance', 'role', 'workMode', 'branch',
+    'allowedMobileCount', 'allowedWebCount'];
 
   let targetRole = req.body.role;
   if (req.body.designation) {
@@ -220,7 +224,8 @@ export const authorizeDeviceReset = asyncHandler(async (req, res) => {
 
   user.isDeviceResetAuthorized = true;
   user.deviceResetRequested = false;
-  // We don't clear primaryDeviceId yet, the next login will overwrite it.
+  user.primaryDeviceId = null;
+  user.refreshTokens = [];
 
   await user.save({ validateBeforeSave: false });
 

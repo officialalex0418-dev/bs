@@ -55,6 +55,8 @@ const userSchema = new mongoose.Schema(
     primaryDeviceId: { type: String, default: null },
     isDeviceResetAuthorized: { type: Boolean, default: false },
     deviceResetRequested: { type: Boolean, default: false },
+    allowedMobileCount: { type: Number, default: 1 },
+    allowedWebCount: { type: Number, default: 1 },
     // Staff-specific
     monthlyTarget: { type: Number, min: 0, default: 0 },
     leaveBalance: {

@@ -19,15 +19,17 @@
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
+import { Device } from '@capacitor/device';
 import { api } from '@/api/client';
 
 const QUEUE_KEY = 'bs_location_queue';
 
-function getDeviceInfo() {
+async function getDeviceInfo() {
+  const info = await Device.getInfo();
   return {
-    platform: 'web',
-    model: navigator.userAgent.slice(0, 80),
-    osVersion: navigator.platform || 'unknown',
+    platform: info.platform, // 'android' | 'ios' | 'web'
+    model: info.model,
+    osVersion: info.osVersion,
     appVersion: '1.0.0',
   };
 }
@@ -47,6 +49,12 @@ export function useLocationTracker(enabled = true) {
 
   const capture = useCallback(async () => {
     try {
+      const info = await Device.getInfo();
+      const isNative = info.platform === 'android' || info.platform === 'ios';
+
+      // Enforce mobile-only tracking for background pings if needed
+      if (!isNative) return null;
+
       const pos = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
         timeout: 20000,
@@ -58,7 +66,11 @@ export function useLocationTracker(enabled = true) {
         longitude: pos.coords.longitude,
         accuracy: pos.coords.accuracy,
         recordedAt: new Date(pos.timestamp).toISOString(),
-        deviceInfo: getDeviceInfo(),
+        deviceInfo: {
+          platform: info.platform,
+          model: info.model,
+          osVersion: info.osVersion,
+        },
         source: 'BACKGROUND',
       };
     } catch (e) {
@@ -79,6 +91,7 @@ export function useLocationTracker(enabled = true) {
   const ping = useCallback(async () => {
     try {
       const point = await capture();
+      if (!point) return; // Skip non-native tracking
       try {
         await flush(); // send any backlog first
         await api.post('/locations', point);

@@ -45,6 +45,8 @@ export const login = asyncHandler(async (req, res) => {
   // Single device login for APP USERS (Staff & Managers)
   const isAppRequest = !!deviceId;
   if (isAppRequest && ['STAFF', 'COMPANY_MANAGER'].includes(user.role)) {
+    const allowedMobile = user.allowedMobileCount || 1;
+
     if (!user.primaryDeviceId) {
       user.primaryDeviceId = deviceId;
     } else if (user.primaryDeviceId !== deviceId) {
@@ -52,15 +54,32 @@ export const login = asyncHandler(async (req, res) => {
         user.primaryDeviceId = deviceId;
         user.isDeviceResetAuthorized = false;
         user.deviceResetRequested = false;
-      } else {
+      } else if (allowedMobile === 1) {
         throw ApiError.forbidden(user.deviceResetRequested
           ? 'Device reset request is pending approval.'
           : 'Security: You are already logged in on another device. Please request a device reset from your company administrator to switch devices.');
       }
+      // If allowedMobile > 1, we could allow it, but the current logic is Hardware-ID locked to ONE.
+      // For now, we stick to the primary ID logic unless explicitly asked to support multiple HW IDs.
     }
 
-    // Force logout other sessions for this user on login
-    user.refreshTokens = [];
+    // Force logout other sessions for this user on login if it's a strict single device
+    if (allowedMobile === 1) {
+      user.refreshTokens = [];
+    }
+  }
+
+  // Enforce Web Session Limit
+  if (!isAppRequest && ['STAFF', 'COMPANY_MANAGER'].includes(user.role)) {
+    const allowedWeb = user.allowedWebCount || 1;
+    if (user.refreshTokens.filter(t => !t.device || t.device === 'web').length >= allowedWeb) {
+      // Clear oldest web session to make room
+      const webTokens = user.refreshTokens.filter(t => !t.device || t.device === 'web');
+      if (webTokens.length > 0) {
+        const oldest = webTokens.sort((a,b) => a.createdAt - b.createdAt)[0];
+        user.refreshTokens = user.refreshTokens.filter(t => t.tokenHash !== oldest.tokenHash);
+      }
+    }
   }
 
   const accessToken = signAccessToken(user);

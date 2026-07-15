@@ -23,6 +23,12 @@ export const checkIn = asyncHandler(async (req, res) => {
 
   const { latitude, longitude, deviceInfo } = req.body;
 
+  // Outdoor staff cannot check-in from web
+  const isAppRequest = !!deviceInfo?.platform && (deviceInfo.platform.toLowerCase() === 'android' || deviceInfo.platform.toLowerCase() === 'ios');
+  if (req.user.workMode === 'OUTDOOR' && !isAppRequest) {
+    throw ApiError.forbidden('Outdoor staff can only check in via the mobile application.');
+  }
+
   // 1. Check radius for indoor users
   if (req.user.workMode === 'INDOOR') {
     if (latitude == null || longitude == null) {
@@ -126,6 +132,13 @@ export const checkOut = asyncHandler(async (req, res) => {
   if (attendance.checkOut?.time) throw ApiError.conflict('Already checked out today');
 
   const { latitude, longitude, deviceInfo } = req.body;
+
+  // Outdoor staff cannot check-out from web
+  const isAppRequest = !!deviceInfo?.platform && (deviceInfo.platform.toLowerCase() === 'android' || deviceInfo.platform.toLowerCase() === 'ios');
+  if (req.user.workMode === 'OUTDOOR' && !isAppRequest) {
+    throw ApiError.forbidden('Outdoor staff can only check out via the mobile application.');
+  }
+
   const now = new Date();
   const address = await reverseGeocode(latitude, longitude);
 

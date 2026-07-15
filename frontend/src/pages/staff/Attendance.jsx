@@ -30,7 +30,15 @@ export default function StaffAttendance() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [locError, setLocError] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
   const { requestLocation } = useAppPermissions();
+
+  useEffect(() => {
+    (async () => {
+      const info = await Device.getInfo();
+      setIsMobile(info.platform === 'android' || info.platform === 'ios');
+    })();
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -142,6 +150,7 @@ export default function StaffAttendance() {
   if (!data) return <Spinner />;
   const today = data.today;
   const biometricActive = localStorage.getItem(`biometric_${user?._id}`) === 'true';
+  const outdoorOnWeb = user?.workMode === 'OUTDOOR' && !isMobile;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -153,6 +162,13 @@ export default function StaffAttendance() {
           </Badge>
         )}
       </div>
+
+      {outdoorOnWeb && (
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
+          <AlertCircle className="h-5 w-5 shrink-0 text-amber-500" />
+          <p><b>Outdoor Staff:</b> Attendance is restricted to the mobile application. Please use the Business Sarthi APK to check in/out.</p>
+        </div>
+      )}
 
       {message && <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-medium">{message}</div>}
 
@@ -182,13 +198,13 @@ export default function StaffAttendance() {
 
             <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
               <Button className="h-20 flex-1 text-lg sm:px-12 flex-col gap-0" loading={busy}
-                disabled={!!today?.checkIn?.time} onClick={() => act('check-in')}>
+                disabled={!!today?.checkIn?.time || outdoorOnWeb} onClick={() => act('check-in')}>
                 <LogIn className="h-6 w-6" />
                 <span className="mt-1">Check In</span>
                 {today?.checkIn?.time && <span className="text-[10px] opacity-80">{formatTime(today.checkIn.time)}</span>}
               </Button>
               <Button variant="outline" className="h-20 flex-1 text-lg sm:px-12 flex-col gap-0 border-2" loading={busy}
-                disabled={!today?.checkIn?.time || !!today?.checkOut?.time} onClick={() => act('check-out')}>
+                disabled={!today?.checkIn?.time || !!today?.checkOut?.time || outdoorOnWeb} onClick={() => act('check-out')}>
                 <LogOut className="h-6 w-6" />
                 <span className="mt-1">Check Out</span>
                 {today?.checkOut?.time && <span className="text-[10px] opacity-80">{formatTime(today.checkOut.time)}</span>}

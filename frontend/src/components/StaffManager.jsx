@@ -11,6 +11,7 @@ const emptyForm = {
   name: '', email: '', phone: '', address: '', pan: '', position: '',
   basicSalary: 0, allowances: 0, monthlyTarget: 0, role: 'STAFF', designation: '',
   workMode: 'OUTDOOR', branch: '', shift: '',
+  allowedMobileCount: 1, allowedWebCount: 1,
 };
 
 export default function StaffManager({ mode = 'company', companyId = null, allowCompanySelection = false }) {
@@ -79,6 +80,8 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
         companyId: mode === 'company' ? (companyId || selectedCompanyId || undefined) : undefined,
         workMode: form.workMode,
         branch: form.workMode === 'INDOOR' ? (form.branch || null) : null,
+        allowedMobileCount: Number(form.allowedMobileCount),
+        allowedWebCount: Number(form.allowedWebCount),
       };
       if (editing) {
         delete body.email; delete body.role;
@@ -311,6 +314,9 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
 
           <Input label="Basic Salary" type="number" min="0" value={form.basicSalary} onChange={(e) => setForm({ ...form, basicSalary: e.target.value })} />
           <Input label="Allowances" type="number" min="0" value={form.allowances} onChange={(e) => setForm({ ...form, allowances: e.target.value })} />
+
+          <Input label="Allowed Mobile Devices" type="number" min="1" value={form.allowedMobileCount} onChange={(e) => setForm({ ...form, allowedMobileCount: e.target.value })} />
+          <Input label="Allowed Web Sessions" type="number" min="1" value={form.allowedWebCount} onChange={(e) => setForm({ ...form, allowedWebCount: e.target.value })} />
 
           {mode === 'company' && (
             <Input label="Monthly Sales Target" type="number" min="0" value={form.monthlyTarget} onChange={(e) => setForm({ ...form, monthlyTarget: e.target.value })} />
