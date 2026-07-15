@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { LogIn, LogOut, MapPin, AlertCircle, Settings, Fingerprint, Calendar } from 'lucide-react';
 import { api } from '@/api/client';
-import { NativeBiometric } from '@capacitor-community/native-biometric';
+import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Device } from '@capacitor/device';
 import { useAuth } from '@/context/AuthContext';
 import { useAppPermissions } from '@/hooks/useAppPermissions';
