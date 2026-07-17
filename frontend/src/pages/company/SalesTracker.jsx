@@ -5,7 +5,7 @@ import {
   LineChart, Line, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { api, downloadFile } from '@/api/client';
-import { Card, CardHeader, CardBody, Button, Select, Table, Spinner, Pagination, StatCard, EmptyState, Input } from '@/components/ui';
+import { Card, CardHeader, CardBody, Button, Select, Table, Spinner, Pagination, StatCard, EmptyState, DatePicker } from '@/components/ui';
 import { formatMoney, formatDate } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 
@@ -124,17 +124,15 @@ export default function SalesTracker() {
 
           {period === 'custom' && (
             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
-               <Input
-                type="date"
+               <DatePicker
                 value={dates.start}
-                onChange={(e) => setDates({ ...dates, start: e.target.value })}
+                onChange={(val) => setDates({ ...dates, start: val })}
                 className="w-36 h-9 text-xs"
               />
                <span className="text-slate-400">-</span>
-               <Input
-                type="date"
+               <DatePicker
                 value={dates.end}
-                onChange={(e) => setDates({ ...dates, end: e.target.value })}
+                onChange={(val) => setDates({ ...dates, end: val })}
                 className="w-36 h-9 text-xs"
               />
             </div>
