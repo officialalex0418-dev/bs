@@ -2,9 +2,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { Wallet, Download, Clock, TrendingUp, MinusCircle, PlusCircle } from 'lucide-react';
 import { api } from '@/api/client';
 import { Card, CardHeader, CardBody, Table, Badge, Spinner, Button, Modal } from '@/components/ui';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, toNepaliMonth } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 export default function StaffPayroll() {
+  const { user } = useAuth();
+  const dateFormat = user?.company?.settings?.dateFormat || 'BS';
   const [data, setData] = useState(null);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +50,7 @@ export default function StaffPayroll() {
           data={data.items}
           renderRow={(p) => (
             <tr key={p._id}>
-              <td className="table-td font-bold">{p.month}</td>
+              <td className="table-td font-bold">{dateFormat === 'BS' ? toNepaliMonth(p.month) : p.month}</td>
               <td className="table-td">{formatMoney(p.basicSalary)}</td>
               <td className="table-td">{formatMoney(p.allowance)}</td>
               <td className="table-td font-bold text-primary-600">{formatMoney(p.netSalary)}</td>
@@ -62,7 +65,7 @@ export default function StaffPayroll() {
         />
       </Card>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={`Payroll Details - ${selected?.month}`} wide>
+      <Modal open={!!selected} onClose={() => setSelected(null)} title={`Payroll Details - ${dateFormat === 'BS' ? toNepaliMonth(selected?.month) : selected?.month}`} wide>
         {selected && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
