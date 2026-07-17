@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useAppPermissions } from '@/hooks/useAppPermissions';
 import { Card, CardHeader, CardBody, Button, Table, Badge, Spinner, Modal, Input, Textarea, MonthPicker } from '@/components/ui';
 import { formatTime, formatDate, toNepaliMonth, toNepaliDate, todayStr } from '@/lib/utils';
-import { adToBs } from '@/lib/nepaliDate';
+import { adToBs, getBsMonthInfo, bsToAd } from '@/lib/nepaliDate';
 
 async function getPosition() {
   return new Promise((resolve, reject) => {
