@@ -110,7 +110,7 @@ r.patch('/leaves/:id/decision', protect, authorize(...MANAGERS), validate({ body
 
 // ============ SALES (feature-gated) ============
 r.post('/sales', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('salesTracking'), validate({ body: schemas.createSale }), sale.createSale);
-r.get('/sales', protect, scopeCompany, requireFeature('salesTracking'), sale.listSales);
+r.get('/sales', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('salesTracking'), sale.listSales);
 r.get('/sales/analytics', protect, authorize(...MANAGERS), scopeCompany, requireFeature('salesTracking'), sale.salesAnalytics);
 r.get('/sales/me/summary', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('salesTracking'), sale.mySalesSummary);
 r.get('/sales/metadata', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('salesTracking'), sale.getSalesMetadata);

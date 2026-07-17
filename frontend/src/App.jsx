@@ -176,7 +176,7 @@ export default function App() {
       if (perms.liveTracking) finalStaffNav.push({ to: '/staff/management/tracking', label: 'Tracking Mgmt', icon: MapPin });
       if (perms.attendance) finalStaffNav.push({ to: '/staff/management/attendance', label: 'Attendance Mgmt', icon: CalendarCheck });
       if (perms.leaves) finalStaffNav.push({ to: '/staff/management/leaves', label: 'Leave Mgmt', icon: CalendarOff });
-      if (perms.salesTracker && hasFeature('salesTracking')) finalStaffNav.push({ to: '/staff/management/sales', label: 'Sales Mgmt', icon: TrendingUp });
+      if (perms.salesTracker && hasFeature('salesTracking') && user.role !== 'STAFF') finalStaffNav.push({ to: '/staff/management/sales', label: 'Sales Mgmt', icon: TrendingUp });
       if (perms.inventory && hasFeature('inventoryManagement')) finalStaffNav.push({ to: '/staff/management/inventory', label: 'Inventory', icon: Boxes });
       if (perms.distributors && hasFeature('vendorManagement')) {
          finalStaffNav.push({ to: '/staff/management/distributors', label: 'Distributors', icon: Truck });
@@ -194,7 +194,9 @@ export default function App() {
     if (item.to === '/staff/sales') {
       if (!hasFeature('salesTracking')) return false;
       const dept = (user?.designation?.department?.name || '').toLowerCase();
-      if (!dept.includes('sales') && !dept.includes('marketing')) return false;
+      const isSalesMarketing = dept.includes('sales') || dept.includes('marketing');
+      // Only sales/marketing staff or managers with salesTracker permission can see sales entry
+      if (!isSalesMarketing && !user?.designation?.permissions?.salesTracker) return false;
     }
     return true;
   });

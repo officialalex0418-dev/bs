@@ -85,7 +85,14 @@ export const authorize = (...roles) => (req, _res, next) => {
       }
 
       if (permissionChecked) {
-        if (permissionGranted) return next();
+        if (permissionGranted) {
+          // Sensitive: even with granular permission, STAFF role cannot access 'Management-Only' routes (e.g. Analytics)
+          const isManagementOnly = (roles.includes('COMPANY_MANAGER') || roles.includes('COMPANY_OWNER')) && !roles.includes('STAFF');
+          if (role === 'STAFF' && isManagementOnly) {
+            return next(ApiError.forbidden('Access denied: Managerial privilege required for this action'));
+          }
+          return next();
+        }
         return next(ApiError.forbidden('Access denied: Granular permission missing'));
       }
     }

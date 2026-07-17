@@ -36,15 +36,26 @@ export default function SalesTracker() {
       setAnalytics(a.data.data);
       setSales(s.data.data);
     } catch (err) {
-      if (err.response?.status === 403) setFeatureBlocked(true);
+      if (err.response?.status === 403) {
+        const msg = err.response?.data?.message || '';
+        if (msg.toLowerCase().includes('package')) setFeatureBlocked(true);
+        else setFeatureBlocked('Access denied: You do not have permission to view sales management.');
+      }
     }
   }, [period, page]);
 
   useEffect(() => { load(); }, [load]);
 
   if (featureBlocked) {
-    return <Card><EmptyState icon={TrendingUp} title="Sales tracking not included in your package"
-      subtitle="Upgrade your package to unlock the sales tracker." /></Card>;
+    return (
+      <Card>
+        <EmptyState
+          icon={TrendingUp}
+          title={typeof featureBlocked === 'string' ? 'Access Denied' : "Sales tracking not included in your package"}
+          subtitle={typeof featureBlocked === 'string' ? featureBlocked : "Upgrade your package to unlock the sales tracker."}
+        />
+      </Card>
+    );
   }
   if (!analytics || !sales) return <Spinner />;
 
