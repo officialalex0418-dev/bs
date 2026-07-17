@@ -8,7 +8,7 @@ import { notify } from '../services/notification.service.js';
  * @access  Private
  */
 export const createComplaint = asyncHandler(async (req, res) => {
-  const { recipientId, subject, message, isGroup, attachments, type } = req.body;
+  const { recipientId, subject, message, isGroup, attachments, type, participants } = req.body;
 
   // Get company package for retention days
   const company = await Company.findById(req.user.company).populate('package');
@@ -23,9 +23,25 @@ export const createComplaint = asyncHandler(async (req, res) => {
     subject: subject || (type === 'CHAT' ? 'Direct Message' : 'No Subject'),
     message,
     isGroup: isGroup !== false,
+    participants: participants || [],
     expiresAt,
     attachments: attachments || [],
   };
+
+  if (!complaintData.isGroup && recipientId) {
+    complaintData.recipient = recipientId;
+    // For private chats, sender and recipient are implicit participants
+    complaintData.participants = [req.user._id, recipientId];
+  } else if (complaintData.isGroup && (!participants || participants.length === 0)) {
+    // If it's a "Company Group" (default group), we can leave participants empty to signify everyone.
+    // Or add the sender.
+    complaintData.participants = [req.user._id];
+  } else if (participants && participants.length > 0) {
+    // Custom group: ensure sender is included
+    if (!complaintData.participants.includes(req.user._id)) {
+      complaintData.participants.push(req.user._id);
+    }
+  }
 
   if (!complaintData.isGroup && recipientId) {
     complaintData.recipient = recipientId;
@@ -99,11 +115,20 @@ export const addReply = asyncHandler(async (req, res) => {
   // Check if user has access
   const isSender = complaint.sender.toString() === req.user._id.toString();
   const isRecipient = complaint.recipient?.toString() === req.user._id.toString();
+  const isParticipant = complaint.participants?.some(p => p.toString() === req.user._id.toString());
   const isCompanyManager = req.user.company.toString() === complaint.company.toString() &&
                           ['COMPANY_OWNER', 'COMPANY_MANAGER'].includes(req.user.role);
 
+  // If it's a restricted group/chat (has participants), check if user is in it.
+  // If it's a "Company Group" (isGroup=true and empty participants), all managers can reply.
+  const hasParticipants = complaint.participants && complaint.participants.length > 0;
+
+  if (hasParticipants && !isParticipant && !isCompanyManager) {
+    throw ApiError.forbidden('Not authorized to reply to this conversation');
+  }
+
   if (!complaint.isGroup && !isSender && !isRecipient && !isCompanyManager) {
-    throw ApiError.forbidden('Not authorized to reply to this complaint');
+    throw ApiError.forbidden('Not authorized to reply to this conversation');
   }
 
   const reply = await ComplaintMessage.create({
@@ -178,17 +203,21 @@ export const getComplaintMessages = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const getComplaints = asyncHandler(async (req, res) => {
-  let filter = { company: req.user.company };
+  // Logic:
+  // 1. If user is Owner/Manager, they see:
+  //    - All Company Groups (isGroup: true, participants: empty)
+  //    - Any conversation they are a participant in.
+  // 2. Regular staff sees:
+  //    - All Company Groups (isGroup: true, participants: empty)
+  //    - Any conversation they are a participant in.
 
-  // Everyone (including owners/managers) should only see:
-  // 1. Group chats
-  // 2. Private chats they are involved in (as sender or recipient)
-  filter = {
+  const filter = {
     company: req.user.company,
     $or: [
-      { isGroup: true },
-      { sender: req.user._id },
-      { recipient: req.user._id }
+      { isGroup: true, participants: { $size: 0 } }, // Public Company Groups
+      { participants: req.user._id },                // Specifically added as participant
+      { sender: req.user._id },                      // Own started chats
+      { recipient: req.user._id }                    // Private recipient
     ]
   };
 

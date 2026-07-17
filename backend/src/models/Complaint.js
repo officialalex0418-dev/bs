@@ -6,6 +6,7 @@ const complaintSchema = new mongoose.Schema(
     company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
     recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // Null if group
     isGroup: { type: Boolean, default: true },
+    participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     type: {
       type: String,
       enum: ['CHAT', 'COMPLAINT'],

@@ -1,15 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MessageSquare, Clock, User, Users, Send, ChevronLeft, MoreVertical, Paperclip, Check, CheckCheck, Plus, AlertCircle } from 'lucide-react';
+import { MessageSquare, Clock, User, Users, Send, ChevronLeft, MoreVertical, Paperclip, Check, CheckCheck, Plus, AlertCircle, Search } from 'lucide-react';
 import { api } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
-import { Card, CardHeader, CardBody, Badge, Table, Spinner, Button, Input, Textarea, Modal, Select } from '@/components/ui';
+import { Card, CardHeader, CardBody, Badge, Table, Spinner, Button, Input, Textarea, Modal, Select, Checkbox } from '@/components/ui';
 import { formatDate, formatTime, cn } from '@/lib/utils';
 
 function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
   const [recipients, setRecipients] = useState([]);
+  const [search, setSearch] = useState('');
   const [form, setForm] = useState({
     recipientType: 'group',
     recipientId: '',
+    selectedParticipants: [],
     subject: '',
     message: ''
   });
@@ -21,20 +23,33 @@ function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
     }
   }, [open]);
 
+  const toggleParticipant = (userId) => {
+    setForm(prev => {
+      const current = prev.selectedParticipants;
+      if (current.includes(userId)) {
+        return { ...prev, selectedParticipants: current.filter(id => id !== userId) };
+      } else {
+        return { ...prev, selectedParticipants: [...current, userId] };
+      }
+    });
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     try {
+      const isCustomGroup = form.recipientType === 'create_group';
       await api.post('/complaints', {
         type: mode,
-        isGroup: form.recipientType === 'group' || form.recipientType === 'create_group',
+        isGroup: form.recipientType === 'group' || isCustomGroup,
         recipientId: form.recipientType === 'individual' ? form.recipientId : null,
-        subject: mode === 'COMPLAINT' || form.recipientType === 'create_group' ? form.subject : 'Direct Message',
+        participants: isCustomGroup ? form.selectedParticipants : [],
+        subject: mode === 'COMPLAINT' || isCustomGroup ? form.subject : 'Direct Message',
         message: form.message
       });
       onSuccess();
       onClose();
-      setForm({ recipientType: 'group', recipientId: '', subject: '', message: '' });
+      setForm({ recipientType: 'group', recipientId: '', selectedParticipants: [], subject: '', message: '' });
     } catch (err) {
       alert(`Could not start the ${mode.toLowerCase()}. Please check your connection.`);
     } finally {
@@ -42,11 +57,16 @@ function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
     }
   };
 
+  const filteredRecipients = recipients.filter(r =>
+    r.name.toLowerCase().includes(search.toLowerCase()) ||
+    r.role.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <Modal open={open} onClose={onClose} title={mode === 'COMPLAINT' ? "Add Complaint" : "New Chat"}>
+    <Modal open={open} onClose={onClose} title={mode === 'COMPLAINT' ? "Add Complaint" : "New Chat"} wide={form.recipientType === 'create_group'}>
       <form onSubmit={submit} className="space-y-4">
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Select Recipient</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Select Recipient</label>
           <div className="grid grid-cols-3 gap-2">
             <Button
               type="button"
@@ -91,6 +111,44 @@ function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
           />
         )}
 
+        {form.recipientType === 'create_group' && (
+          <div className="space-y-3">
+             <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search employees..."
+                  className="input pl-10 h-10 text-sm"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+             </div>
+             <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-lg divide-y dark:divide-slate-800">
+                {filteredRecipients.length === 0 && <p className="p-4 text-center text-sm text-slate-500">No employees found</p>}
+                {filteredRecipients.map(r => (
+                  <div
+                    key={r._id}
+                    className="flex items-center gap-3 p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
+                    onClick={() => toggleParticipant(r._id)}
+                  >
+                    <Checkbox checked={form.selectedParticipants.includes(r._id)} onChange={() => {}} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{r.name}</p>
+                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">{r.position || r.role}</p>
+                    </div>
+                  </div>
+                ))}
+             </div>
+             <p className="text-[11px] text-slate-400 font-medium">Selected: {form.selectedParticipants.length} people</p>
+          </div>
+        )}
+
+        {form.recipientType === 'group' && (
+          <p className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
+            Visible to all company members.
+          </p>
+        )}
+
         {(mode === 'COMPLAINT' || form.recipientType === 'create_group') && (
           <Input
             label={form.recipientType === 'create_group' ? "Group Name" : "Subject"}
@@ -112,7 +170,9 @@ function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
 
         <div className="flex gap-3 pt-2">
           <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button type="submit" className="flex-1" loading={busy}>Submit</Button>
+          <Button type="submit" className="flex-1" loading={busy} disabled={form.recipientType === 'create_group' && form.selectedParticipants.length === 0}>
+            Submit
+          </Button>
         </div>
       </form>
     </Modal>
@@ -196,7 +256,7 @@ function ChatView({ complaint, onBack }) {
               {complaint.type === 'CHAT' && !complaint.isGroup ? (complaint.recipient?.name || 'User') : complaint.subject}
             </h3>
             <p className="text-[10px] text-slate-500 truncate">
-              {complaint.isGroup ? 'Company Group' : `Private Chat`}
+              {complaint.type} · {complaint.isGroup ? 'Group' : `Private Chat`}
             </p>
           </div>
         </div>
@@ -271,6 +331,7 @@ export default function Complaints() {
     return () => clearInterval(interval);
   }, [load]);
 
+  // Fix: complaints should be filtered strictly by type
   const filtered = complaints.filter(c => (c.type || 'CHAT') === tab);
 
   if (loading) return <Spinner />;
