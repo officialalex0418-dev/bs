@@ -8,7 +8,7 @@ import { notify } from '../services/notification.service.js';
  * @access  Private
  */
 export const createComplaint = asyncHandler(async (req, res) => {
-  const { recipientId, subject, message, isGroup, attachments } = req.body;
+  const { recipientId, subject, message, isGroup, attachments, type } = req.body;
 
   // Get company package for retention days
   const company = await Company.findById(req.user.company).populate('package');
@@ -19,7 +19,8 @@ export const createComplaint = asyncHandler(async (req, res) => {
   const complaintData = {
     sender: req.user._id,
     company: req.user.company,
-    subject,
+    type: type || 'CHAT',
+    subject: subject || (type === 'CHAT' ? 'Direct Message' : 'No Subject'),
     message,
     isGroup: isGroup !== false,
     expiresAt,

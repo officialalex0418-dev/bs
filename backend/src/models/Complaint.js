@@ -6,6 +6,11 @@ const complaintSchema = new mongoose.Schema(
     company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
     recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // Null if group
     isGroup: { type: Boolean, default: true },
+    type: {
+      type: String,
+      enum: ['CHAT', 'COMPLAINT'],
+      default: 'CHAT',
+    },
     subject: { type: String, required: true, maxlength: 200 },
     message: { type: String, maxlength: 2000 },
     status: {
