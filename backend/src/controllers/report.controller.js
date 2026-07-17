@@ -118,9 +118,23 @@ export const attendanceExcel = asyncHandler(async (req, res) => {
 
 /** GET /reports/sales/excel?period= */
 export const salesExcel = asyncHandler(async (req, res) => {
-  const { start, end } = rangeFromPeriod(req.query.period || 'monthly');
+  const { period, startDate, endDate, staffId } = req.query;
+
+  let start, end;
+  if (startDate && endDate) {
+    start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+  } else {
+    const range = rangeFromPeriod(period || 'monthly');
+    start = range.start;
+    end = range.end;
+  }
+
   const filter = { saleDate: { $gte: start, $lte: end } };
   if (req.companyId) filter.company = req.companyId;
+  if (staffId && staffId !== 'all') filter.staff = staffId;
 
   const sales = await Sale.find(filter).populate('staff', 'name').sort('-saleDate').limit(10000).lean();
 

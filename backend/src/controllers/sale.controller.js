@@ -98,15 +98,19 @@ export const createSale = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data: { sale } });
 });
 
-/** GET /sales?period=&staffId= */
+/** GET /sales?period=&staffId=&startDate=&endDate= */
 export const listSales = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
   const filter = {};
   if (req.companyId) filter.company = req.companyId;
   if (req.user.role === 'STAFF') filter.staff = req.user._id;
-  else if (req.query.staffId) filter.staff = req.query.staffId;
-  if (req.query.period) {
-    const { start, end } = rangeFromPeriod(req.query.period);
+  else if (req.query.staffId && req.query.staffId !== 'all') filter.staff = req.query.staffId;
+
+  const { period, startDate, endDate } = req.query;
+  if (startDate && endDate) {
+    filter.saleDate = { $gte: new Date(startDate), $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)) };
+  } else if (period) {
+    const { start, end } = rangeFromPeriod(period);
     filter.saleDate = { $gte: start, $lte: end };
   }
 
@@ -117,12 +121,24 @@ export const listSales = asyncHandler(async (req, res) => {
   res.json({ success: true, data: paginatedResponse(items, total, page, limit) });
 });
 
-/** GET /sales/analytics?period= — staff-wise, product-wise, monthly growth */
+/** GET /sales/analytics?period=&staffId=&startDate=&endDate= — staff-wise, product-wise, monthly growth */
 export const salesAnalytics = asyncHandler(async (req, res) => {
   const companyId = req.companyId;
   if (!companyId) throw ApiError.badRequest('companyId required');
-  const { start, end } = rangeFromPeriod(req.query.period || '6months');
+
+  const { period, startDate, endDate, staffId } = req.query;
+  let start, end;
+  if (startDate && endDate) {
+    start = new Date(startDate);
+    end = new Date(new Date(endDate).setHours(23, 59, 59, 999));
+  } else {
+    const range = rangeFromPeriod(period || '6months');
+    start = range.start;
+    end = range.end;
+  }
+
   const match = { company: oid(companyId), saleDate: { $gte: start, $lte: end } };
+  if (staffId && staffId !== 'all') match.staff = oid(staffId);
 
   const [byStaff, byProduct, monthly, totals] = await Promise.all([
     Sale.aggregate([

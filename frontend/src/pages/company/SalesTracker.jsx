@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
-import { FileDown, TrendingUp } from 'lucide-react';
+import { FileDown, TrendingUp, Calendar } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   LineChart, Line, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { api, downloadFile } from '@/api/client';
-import { Card, CardHeader, CardBody, Button, Select, Table, Spinner, Pagination, StatCard, EmptyState } from '@/components/ui';
+import { Card, CardHeader, CardBody, Button, Select, Table, Spinner, Pagination, StatCard, EmptyState, Input } from '@/components/ui';
 import { formatMoney, formatDate } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 
@@ -16,6 +16,7 @@ const PERIODS = [
   { value: 'monthly', label: 'Last 30 days' },
   { value: '3months', label: 'Last 3 months' },
   { value: '6months', label: 'Last 6 months' },
+  { value: 'custom', label: 'Custom Range' },
 ];
 
 export default function SalesTracker() {
@@ -23,15 +24,36 @@ export default function SalesTracker() {
   const dateFormat = user?.company?.settings?.dateFormat || 'BS';
   const [analytics, setAnalytics] = useState(null);
   const [sales, setSales] = useState(null);
+  const [staffList, setStaffList] = useState([]);
+
   const [period, setPeriod] = useState('monthly');
+  const [staffId, setStaffId] = useState('all');
+  const [dates, setDates] = useState({
+    start: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
+  });
+
   const [page, setPage] = useState(1);
   const [featureBlocked, setFeatureBlocked] = useState(false);
 
+  const loadStaff = useCallback(async () => {
+    try {
+      const { data } = await api.get('/staff');
+      setStaffList(data.data.items || []);
+    } catch {}
+  }, []);
+
   const load = useCallback(async () => {
     try {
+      const params = { period, staffId, page };
+      if (period === 'custom') {
+        params.startDate = dates.start;
+        params.endDate = dates.end;
+      }
+
       const [a, s] = await Promise.all([
-        api.get('/sales/analytics', { params: { period } }),
-        api.get('/sales', { params: { period, page } }),
+        api.get('/sales/analytics', { params }),
+        api.get('/sales', { params }),
       ]);
       setAnalytics(a.data.data);
       setSales(s.data.data);
@@ -42,9 +64,21 @@ export default function SalesTracker() {
         else setFeatureBlocked('Access denied: You do not have permission to view sales management.');
       }
     }
-  }, [period, page]);
+  }, [period, staffId, dates, page]);
+
+  useEffect(() => {
+    loadStaff();
+  }, [loadStaff]);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleDownload = () => {
+    let url = `/reports/sales/excel?period=${period}&staffId=${staffId}`;
+    if (period === 'custom') {
+      url += `&startDate=${dates.start}&endDate=${dates.end}`;
+    }
+    downloadFile(url, `sales-report-${staffId}-${period}.xlsx`);
+  };
 
   if (featureBlocked) {
     return (
@@ -57,16 +91,57 @@ export default function SalesTracker() {
       </Card>
     );
   }
+
   if (!analytics || !sales) return <Spinner />;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <h1 className="text-2xl font-bold">Sales Tracker</h1>
-        <div className="flex gap-2">
-          <Select value={period} onChange={(e) => { setPeriod(e.target.value); setPage(1); }} options={PERIODS} className="w-44" />
-          <Button variant="outline" onClick={() => downloadFile(`/reports/sales/excel?period=${period}`, `sales-${period}.xlsx`)}>
-            <FileDown className="h-4 w-4" /> Excel
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-400 uppercase">Staff:</span>
+            <Select
+              value={staffId}
+              onChange={(e) => { setStaffId(e.target.value); setPage(1); }}
+              options={[
+                { value: 'all', label: 'All Employees' },
+                ...staffList.map(s => ({ value: s._id, label: s.name }))
+              ]}
+              className="w-40 h-9 text-xs"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-400 uppercase">Range:</span>
+            <Select
+              value={period}
+              onChange={(e) => { setPeriod(e.target.value); setPage(1); }}
+              options={PERIODS}
+              className="w-40 h-9 text-xs"
+            />
+          </div>
+
+          {period === 'custom' && (
+            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+               <Input
+                type="date"
+                value={dates.start}
+                onChange={(e) => setDates({ ...dates, start: e.target.value })}
+                className="w-36 h-9 text-xs"
+              />
+               <span className="text-slate-400">-</span>
+               <Input
+                type="date"
+                value={dates.end}
+                onChange={(e) => setDates({ ...dates, end: e.target.value })}
+                className="w-36 h-9 text-xs"
+              />
+            </div>
+          )}
+
+          <Button variant="primary" size="sm" onClick={handleDownload} className="h-9">
+            <FileDown className="h-4 w-4 mr-1.5" /> Excel
           </Button>
         </div>
       </div>
@@ -130,7 +205,7 @@ export default function SalesTracker() {
           columns={['Date', 'Staff', 'Product', 'Qty', 'Amount', 'Customer', 'Remarks']}
           data={sales.items}
           renderRow={(s) => (
-            <tr key={s._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
+            <tr key={s._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
               <td className="table-td">{formatDate(s.saleDate, dateFormat)}</td>
               <td className="table-td font-medium">{s.staff?.name}</td>
               <td className="table-td">{s.productName}</td>
@@ -141,7 +216,7 @@ export default function SalesTracker() {
             </tr>
           )}
           mobileRender={(s) => (
-            <div key={s._id} className="p-4 space-y-2 text-sm">
+            <div key={s._id} className="p-4 space-y-2 text-sm border-b dark:border-slate-800 last:border-0">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-semibold">{s.productName}</p>
