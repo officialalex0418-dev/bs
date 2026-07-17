@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
-import { LogIn, LogOut, MapPin, AlertCircle, Settings, Fingerprint, Calendar } from 'lucide-react';
+import { LogIn, LogOut, MapPin, AlertCircle, Settings, Fingerprint, Calendar, Clock, ClipboardList } from 'lucide-react';
 import { api } from '@/api/client';
 import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Device } from '@capacitor/device';
 import { useAuth } from '@/context/AuthContext';
 import { useAppPermissions } from '@/hooks/useAppPermissions';
-import { Card, CardHeader, CardBody, Button, Table, Badge, Spinner } from '@/components/ui';
-import { formatTime, formatDate, toNepaliMonth, toNepaliDate } from '@/lib/utils';
+import { Card, CardHeader, CardBody, Button, Table, Badge, Spinner, Modal, Input, Textarea } from '@/components/ui';
+import { formatTime, formatDate, toNepaliMonth, toNepaliDate, todayStr } from '@/lib/utils';
 
 async function getPosition() {
   return new Promise((resolve, reject) => {
@@ -32,6 +32,10 @@ export default function StaffAttendance() {
   const [locError, setLocError] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const { requestLocation, requestAllPermissions } = useAppPermissions();
+
+  const [reqModal, setReqModal] = useState(false);
+  const [reqForm, setReqForm] = useState({ date: todayStr(), checkInTime: '', checkOutTime: '', reason: '' });
+  const [reqLoading, setReqLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -151,8 +155,31 @@ export default function StaffAttendance() {
     } finally { setBusy(false); }
   };
 
+  const handleRequest = async (e) => {
+    e.preventDefault();
+    setReqLoading(true);
+    try {
+      // Combine date with time to create full Date objects
+      const d = reqForm.date;
+      const ci = new Date(`${d}T${reqForm.checkInTime}:00`);
+      const co = new Date(`${d}T${reqForm.checkOutTime}:00`);
+
+      await api.post('/attendance/requests', {
+        ...reqForm,
+        checkInTime: ci.toISOString(),
+        checkOutTime: co.toISOString()
+      });
+      setMessage('Attendance request submitted successfully ✓');
+      setReqModal(false);
+      setReqForm({ date: todayStr(), checkInTime: '', checkOutTime: '', reason: '' });
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Failed to submit request');
+    } finally { setReqLoading(false); }
+  };
+
   if (!data) return <Spinner />;
   const today = data.today;
+  const restriction = data.restriction;
   const biometricActive = localStorage.getItem(`biometric_${user?._id}`) === 'true';
   const outdoorOnWeb = user?.workMode === 'OUTDOOR' && !isMobile;
 
@@ -160,12 +187,29 @@ export default function StaffAttendance() {
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Daily Attendance</h1>
-        {biometricActive && (
-          <Badge color="blue" className="flex items-center gap-1">
-            <Fingerprint className="h-3 w-3" /> Biometric Active
-          </Badge>
-        )}
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setReqModal(true)}>
+            <Clock className="h-4 w-4 mr-1" /> Request Overtime
+          </Button>
+          {biometricActive && (
+            <Badge color="blue" className="flex items-center gap-1">
+              <Fingerprint className="h-3 w-3" /> Biometric Active
+            </Badge>
+          )}
+        </div>
       </div>
+
+      {restriction?.restricted && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/30 dark:bg-blue-900/20">
+          <div className="flex gap-3">
+            <AlertCircle className="h-5 w-5 shrink-0 text-blue-600" />
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">{restriction.reason}</p>
+              <p className="text-xs text-blue-700 dark:text-blue-400">Regular check-in is disabled. If you are working overtime, please use the button above to request attendance.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {outdoorOnWeb && (
         <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
@@ -202,7 +246,7 @@ export default function StaffAttendance() {
 
             <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-center">
               <Button className="h-20 flex-1 text-lg sm:px-12 flex-col gap-0" loading={busy}
-                disabled={!!today?.checkIn?.time || outdoorOnWeb} onClick={() => act('check-in')}>
+                disabled={!!today?.checkIn?.time || outdoorOnWeb || restriction?.restricted} onClick={() => act('check-in')}>
                 <LogIn className="h-6 w-6" />
                 <span className="mt-1">Check In</span>
                 {today?.checkIn?.time && <span className="text-[10px] opacity-80">{formatTime(today.checkIn.time)}</span>}
@@ -291,6 +335,21 @@ export default function StaffAttendance() {
           )}
         />
       </Card>
+
+      <Modal open={reqModal} onClose={() => setReqModal(false)} title="Attendance Request (Overtime)">
+        <form onSubmit={handleRequest} className="space-y-4">
+          <Input label="Date" type="date" value={reqForm.date} onChange={e => setReqForm({ ...reqForm, date: e.target.value })} required />
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Check In Time" type="time" value={reqForm.checkInTime} onChange={e => setReqForm({ ...reqForm, checkInTime: e.target.value })} required />
+            <Input label="Check Out Time" type="time" value={reqForm.checkOutTime} onChange={e => setReqForm({ ...reqForm, checkOutTime: e.target.value })} required />
+          </div>
+          <Textarea label="Reason / Work Description" value={reqForm.reason} onChange={e => setReqForm({ ...reqForm, reason: e.target.value })} placeholder="e.g. Completed urgent inventory audit on Saturday" required />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" type="button" onClick={() => setReqModal(false)}>Cancel</Button>
+            <Button type="submit" loading={reqLoading}>Submit Request</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

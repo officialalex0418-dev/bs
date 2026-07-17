@@ -95,6 +95,12 @@ r.post('/attendance/check-out', protect, authorize('STAFF', 'COMPANY_MANAGER'), 
 r.get('/attendance/me', protect, attendance.myAttendance);
 r.get('/attendance', protect, authorize(...MANAGERS), scopeCompany, attendance.listAttendance);
 
+// Attendance Requests
+r.post('/attendance/requests', protect, authorize('STAFF', 'COMPANY_MANAGER'), attendance.createAttendanceRequest);
+r.get('/attendance/requests/me', protect, attendance.myAttendanceRequests);
+r.get('/attendance/requests', protect, authorize(...MANAGERS), scopeCompany, attendance.listAttendanceRequests);
+r.patch('/attendance/requests/:id/review', protect, authorize(...MANAGERS), attendance.reviewAttendanceRequest);
+
 // ============ LEAVES ============
 r.post('/leaves', protect, authorize('STAFF', 'COMPANY_MANAGER'), validate({ body: schemas.applyLeave }), leave.applyLeave);
 r.get('/leaves/me', protect, leave.myLeaves);

@@ -1,4 +1,5 @@
 import Attendance from '../models/Attendance.js';
+import AttendanceRequest from '../models/AttendanceRequest.js';
 import LocationLog from '../models/LocationLog.js';
 import Company from '../models/Company.js';
 import Branch from '../models/Branch.js';
@@ -11,6 +12,7 @@ import { todayStr } from '../utils/dates.js';
 import { getDistanceMeters } from '../utils/geo.js';
 
 import { reverseGeocode } from '../utils/geocoder.js';
+import { checkAttendanceRestriction } from '../utils/attendance-checks.js';
 
 /** POST /attendance/check-in */
 export const checkIn = asyncHandler(async (req, res) => {
@@ -18,6 +20,13 @@ export const checkIn = asyncHandler(async (req, res) => {
   if (!companyId) throw ApiError.forbidden('No company associated');
 
   const date = todayStr();
+
+  // 0. Check for off-days, holidays, or leaves
+  const restriction = await checkAttendanceRestriction(req.user, date);
+  if (restriction.restricted) {
+    throw ApiError.forbidden(restriction.reason + ' Regular check-in is disabled. Please submit an attendance request if you are working overtime.');
+  }
+
   const existing = await Attendance.findOne({ staff: req.user._id, date });
   if (existing?.checkIn?.time) throw ApiError.conflict('Already checked in today');
 
@@ -196,18 +205,23 @@ export const checkOut = asyncHandler(async (req, res) => {
 /** GET /attendance/me?month=YYYY-MM */
 export const myAttendance = asyncHandler(async (req, res) => {
   const month = req.query.month || todayStr().slice(0, 7);
-  const items = await Attendance.find({
-    staff: req.user._id,
-    date: { $regex: `^${month}` },
-  }).sort('-date');
+  const date = todayStr();
+
+  const [items, restriction] = await Promise.all([
+    Attendance.find({
+      staff: req.user._id,
+      date: { $regex: `^${month}` },
+    }).sort('-date'),
+    checkAttendanceRestriction(req.user, date)
+  ]);
 
   const lateDays = items.filter((a) => a.checkIn?.isLate).length;
   const presentDays = items.filter((a) => ['PRESENT', 'HALF_DAY'].includes(a.status)).length;
-  const today = items.find((a) => a.date === todayStr());
+  const today = items.find((a) => a.date === date);
 
   res.json({
     success: true,
-    data: { items, summary: { month, presentDays, lateDays }, today: today || null },
+    data: { items, summary: { month, presentDays, lateDays }, today: today || null, restriction },
   });
 });
 
@@ -226,4 +240,114 @@ export const listAttendance = asyncHandler(async (req, res) => {
     Attendance.countDocuments(filter),
   ]);
   res.json({ success: true, data: paginatedResponse(items, total, page, limit) });
+});
+
+/** POST /attendance/requests */
+export const createAttendanceRequest = asyncHandler(async (req, res) => {
+  const { date, checkInTime, checkOutTime, reason } = req.body;
+  if (!date || !checkInTime || !checkOutTime || !reason) {
+    throw ApiError.badRequest('Missing required fields');
+  }
+
+  // Ensure checkOut is after checkIn
+  if (new Date(checkOutTime) <= new Date(checkInTime)) {
+    throw ApiError.badRequest('Check-out time must be after check-in time');
+  }
+
+  // Check if attendance already exists for this date
+  const existing = await Attendance.findOne({ staff: req.user._id, date });
+  if (existing?.checkIn?.time) {
+    throw ApiError.conflict('Attendance already exists for this date');
+  }
+
+  const request = await AttendanceRequest.create({
+    staff: req.user._id,
+    company: req.user.company._id,
+    date,
+    checkInTime,
+    checkOutTime,
+    reason,
+  });
+
+  audit({ req, action: 'CREATE_ATTENDANCE_REQUEST', entity: 'AttendanceRequest', entityId: request._id });
+
+  // Notify admin/owner
+  realtime.notify(req.user.company._id.toString(), {
+    title: 'New Attendance Request',
+    message: `${req.user.name} has requested attendance for ${date} (Overtime/Off-day)`,
+    type: 'ATTENDANCE_REQUEST',
+    link: '/company/attendance' // Assuming this is where they manage it
+  });
+
+  res.status(201).json({ success: true, data: { request } });
+});
+
+/** GET /attendance/requests/me */
+export const myAttendanceRequests = asyncHandler(async (req, res) => {
+  const requests = await AttendanceRequest.find({ staff: req.user._id }).sort('-createdAt');
+  res.json({ success: true, data: { requests } });
+});
+
+/** GET /attendance/requests (admin/owner) */
+export const listAttendanceRequests = asyncHandler(async (req, res) => {
+  const filter = { company: req.companyId };
+  if (req.query.status) filter.status = req.query.status;
+
+  const requests = await AttendanceRequest.find(filter)
+    .populate('staff', 'name position profilePhoto')
+    .sort('-createdAt');
+
+  res.json({ success: true, data: { requests } });
+});
+
+/** PATCH /attendance/requests/:id/review */
+export const reviewAttendanceRequest = asyncHandler(async (req, res) => {
+  const { status, reviewNote } = req.body;
+  if (!['APPROVED', 'REJECTED'].includes(status)) {
+    throw ApiError.badRequest('Invalid status');
+  }
+
+  const request = await AttendanceRequest.findById(req.params.id).populate('staff');
+  if (!request) throw ApiError.notFound('Request not found');
+  if (request.status !== 'PENDING') throw ApiError.badRequest('Request already reviewed');
+
+  request.status = status;
+  request.reviewNote = reviewNote;
+  request.reviewedBy = req.user._id;
+  request.reviewedAt = new Date();
+
+  if (status === 'APPROVED') {
+    // Create actual attendance record
+    const workedMinutes = Math.round((new Date(request.checkOutTime) - new Date(request.checkInTime)) / 60000);
+
+    await Attendance.findOneAndUpdate(
+      { staff: request.staff._id, date: request.date },
+      {
+        company: request.company,
+        staff: request.staff._id,
+        date: request.date,
+        'checkIn.time': request.checkInTime,
+        'checkIn.address': 'Approved Request',
+        'checkOut.time': request.checkOutTime,
+        'checkOut.address': 'Approved Request',
+        workedMinutes,
+        status: 'PRESENT', // Approved overtime counts as Present
+      },
+      { upsert: true, new: true }
+    );
+  }
+
+  await request.save();
+
+  audit({ req, action: 'REVIEW_ATTENDANCE_REQUEST', entity: 'AttendanceRequest', entityId: request._id, meta: { status } });
+
+  // Notify staff
+  realtime.notify(request.staff._id.toString(), {
+    title: `Attendance Request ${status}`,
+    message: `Your attendance request for ${request.date} has been ${status.toLowerCase()}.`,
+    type: 'ATTENDANCE_REVIEW',
+    link: '/staff/attendance'
+  });
+
+  res.json({ success: true, data: { request } });
 });
