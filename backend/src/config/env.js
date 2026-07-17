@@ -3,9 +3,12 @@ dotenv.config();
 
 const required = ['MONGO_URI', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'];
 for (const key of required) {
-  if (!process.env[key] && process.env.NODE_ENV === 'production') {
-    // Fail fast in production if critical config is missing
-    throw new Error(`Missing required environment variable: ${key}`);
+  if (!process.env[key]) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`CRITICAL: Missing required environment variable: ${key}`);
+    } else {
+      console.warn(`[SECURITY WARN] Missing environment variable: ${key}. Using insecure development default.`);
+    }
   }
 }
 
@@ -17,10 +20,10 @@ export const env = {
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   mongoUri: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/business_sarthi',
   jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET || 'dev_access_secret',
-    refreshSecret: process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret',
+    accessSecret: process.env.JWT_ACCESS_SECRET || 'dev_secret_UNSAFE_REPLACE_ME_IN_PROD_123456789',
+    refreshSecret: process.env.JWT_REFRESH_SECRET || 'dev_refresh_UNSAFE_REPLACE_ME_IN_PROD_123456789',
     accessExpires: process.env.JWT_ACCESS_EXPIRES || '15m',
-    refreshExpires: process.env.JWT_REFRESH_EXPIRES || '7d',
+    refreshExpires: process.env.JWT_REFRESH_EXPIRES || '30d',
   },
   smtp: {
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
