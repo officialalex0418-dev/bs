@@ -28,6 +28,18 @@ export const toNepaliMonth = (dateStr) => {
   return bs ? `${bs.monthName} ${bs.year}` : dateStr;
 };
 
+/**
+ * Returns YYYY-MM-DD reliably for Asia/Kathmandu
+ */
+export const todayStr = (d = new Date()) => {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kathmandu',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(d);
+};
+
 export const formatMoney = (n, currency = 'NPR') =>
   `${currency} ${Number(n || 0).toLocaleString()}`;
 
