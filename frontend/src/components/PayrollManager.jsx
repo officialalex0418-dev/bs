@@ -56,7 +56,14 @@ export default function PayrollManager({ scope }) {
   useEffect(() => { load(); }, [load]);
 
   const generate = async () => {
-    const currentMonth = new Date().toISOString().slice(0, 7);
+    let currentMonth;
+    if (dateFormat === 'BS') {
+      const bs = adToBs(new Date());
+      currentMonth = `${bs.year}-${String(bs.month).padStart(2, '0')}`;
+    } else {
+      currentMonth = new Date().toISOString().slice(0, 7);
+    }
+
     if (month > currentMonth) {
       setMessage('Cannot generate payroll for future months');
       return;
