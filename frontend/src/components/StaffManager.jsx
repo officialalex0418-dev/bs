@@ -10,7 +10,7 @@ import { formatMoney, cn } from '@/lib/utils';
 const emptyForm = {
   name: '', email: '', phone: '', address: '', pan: '', position: '',
   basicSalary: 0, allowances: 0, monthlyTarget: 0, role: 'STAFF', designation: '',
-  workMode: 'OUTDOOR', branch: '', shift: '',
+  workMode: 'OUTDOOR', branch: 'MAIN', shift: '',
   allowedMobileCount: 1, allowedWebCount: 1,
 };
 
@@ -79,7 +79,7 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
         shift: form.shift || undefined,
         companyId: mode === 'company' ? (companyId || selectedCompanyId || undefined) : undefined,
         workMode: form.workMode,
-        branch: form.workMode === 'INDOOR' ? (form.branch || null) : null,
+        branch: form.workMode === 'INDOOR' ? (form.branch === 'MAIN' ? null : (form.branch || null)) : null,
         allowedMobileCount: Number(form.allowedMobileCount),
         allowedWebCount: Number(form.allowedWebCount),
       };
@@ -194,7 +194,7 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
               <td className="table-td">
                 <div className="flex gap-1">
                   <button className="rounded p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800" title="Edit"
-                    onClick={() => { setEditing(u); setForm({ ...emptyForm, ...u, designation: u.designation?._id || '', branch: u.branch || '', shift: u.shift || '' }); setModal(true); }}>
+                    onClick={() => { setEditing(u); setForm({ ...emptyForm, ...u, designation: u.designation?._id || '', branch: u.branch?._id || 'MAIN', shift: u.shift?._id || '' }); setModal(true); }}>
                     <Pencil className="h-4 w-4" />
                   </button>
                   {mode === 'company' && (
@@ -261,7 +261,7 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
                 )}
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <Button variant="outline" size="sm" onClick={() => { setEditing(u); setForm({ ...emptyForm, ...u, designation: u.designation?._id || '', branch: u.branch || '', shift: u.shift || '' }); setModal(true); }}>
+                <Button variant="outline" size="sm" onClick={() => { setEditing(u); setForm({ ...emptyForm, ...u, designation: u.designation?._id || '', branch: u.branch?._id || 'MAIN', shift: u.shift?._id || '' }); setModal(true); }}>
                   <Pencil className="h-4 w-4 mr-1" /> Edit
                 </Button>
                 <Button variant="outline" size="sm" className="text-amber-600" onClick={() => deactivate(u)}>
@@ -303,7 +303,7 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
 
           {form.workMode === 'INDOOR' && (
             <Select label="Linked Office / Branch *" required value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })}
-              options={[{ value: '', label: 'Main Office (Company Location)' }, ...branches.map(b => ({ value: b._id, label: b.name }))]} />
+              options={[{ value: 'MAIN', label: 'Main Office (Company Location)' }, ...branches.map(b => ({ value: b._id, label: b.name }))]} />
           )}
 
           <Select label="Shift" value={form.shift} onChange={(e) => setForm({ ...form, shift: e.target.value })}

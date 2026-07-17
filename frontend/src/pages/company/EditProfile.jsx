@@ -1,10 +1,30 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Save, ArrowLeft, Building2, Globe, Calendar } from 'lucide-react';
+import { Camera, Save, ArrowLeft, Building2, Globe, Calendar, MapPin } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, useMapEvents, Circle } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/api/client';
 import { Card, CardBody, Button, Input, Textarea, Select } from '@/components/ui';
 import { fileToDataUrl } from '@/lib/utils';
+
+// Fix for default marker icon in Leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+function LocationPicker({ position, setPosition }) {
+  useMapEvents({
+    click(e) {
+      setPosition([e.latlng.lat, e.latlng.lng]);
+    },
+  });
+  return position ? <Marker position={position} /> : null;
+}
 
 export default function CompanyEditProfile() {
   const { user, refreshUser } = useAuth();
@@ -21,12 +41,14 @@ export default function CompanyEditProfile() {
     additionalInfo: '',
     logo: '',
     registrationNumber: '',
+    checkInRadiusMeters: 200,
     settings: {
       dateFormat: 'BS',
       language: 'English',
     },
   });
 
+  const [markerPos, setMarkerPos] = useState([27.7172, 85.3240]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -44,11 +66,15 @@ export default function CompanyEditProfile() {
         additionalInfo: c.additionalInfo || '',
         logo: c.logo || '',
         registrationNumber: c.registrationNumber || '',
+        checkInRadiusMeters: c.checkInRadiusMeters || 200,
         settings: {
           dateFormat: c.settings?.dateFormat || 'AD',
           language: c.settings?.language || 'English',
         },
       });
+      if (c.location?.coordinates) {
+        setMarkerPos([c.location.coordinates[1], c.location.coordinates[0]]);
+      }
     });
   }, []);
 
@@ -56,7 +82,11 @@ export default function CompanyEditProfile() {
     e.preventDefault();
     setLoading(true); setError(''); setSuccess('');
     try {
-      await api.patch('/companies/me', form);
+      const body = {
+        ...form,
+        location: { type: 'Point', coordinates: [markerPos[1], markerPos[0]] }
+      };
+      await api.patch('/companies/me', body);
       await refreshUser();
       setSuccess('Profile updated successfully ✓');
       setTimeout(() => navigate('/company/settings'), 1500);
@@ -133,6 +163,41 @@ export default function CompanyEditProfile() {
 
               <div className="sm:col-span-2">
                 <Textarea label="Additional Information" value={form.additionalInfo} onChange={(e) => setForm({ ...form, additionalInfo: e.target.value })} />
+              </div>
+
+              <div className="col-span-full border-t pt-6 dark:border-slate-800">
+                <h3 className="mb-4 font-bold text-slate-400 uppercase text-xs tracking-widest flex items-center gap-2">
+                  <MapPin className="h-4 w-4" /> Main Office Location & Geofencing
+                </h3>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                   <div className="space-y-4">
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Define the primary office location. Indoor staff will only be able to check-in/out within the specified radius of these coordinates.
+                      </p>
+                      <Input
+                        label="Check-in Radius (meters)"
+                        type="number"
+                        min="50"
+                        max="5000"
+                        value={form.checkInRadiusMeters}
+                        onChange={(e) => setForm({ ...form, checkInRadiusMeters: e.target.value })}
+                      />
+                      <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
+                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Target Coordinates</p>
+                         <div className="flex justify-between text-sm font-mono">
+                            <span>Lat: {markerPos[0].toFixed(6)}</span>
+                            <span>Lng: {markerPos[1].toFixed(6)}</span>
+                         </div>
+                      </div>
+                   </div>
+                   <div className="h-64 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner">
+                      <MapContainer center={markerPos} zoom={15} style={{ height: '100%', width: '100%' }}>
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                        <LocationPicker position={markerPos} setPosition={setMarkerPos} />
+                        <Circle center={markerPos} radius={Number(form.checkInRadiusMeters || 0)} pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.1 }} />
+                      </MapContainer>
+                   </div>
+                </div>
               </div>
 
               <div className="col-span-full border-t pt-6 dark:border-slate-800">

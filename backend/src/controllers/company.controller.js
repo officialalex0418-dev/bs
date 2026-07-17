@@ -88,8 +88,8 @@ export const myCompany = asyncHandler(async (req, res) => {
 /** PATCH /companies/me — company owner can edit own company details */
 export const updateMyCompany = asyncHandler(async (req, res) => {
   if (!req.user.company) throw ApiError.forbidden('No company associated with this account');
-  const updates = (({ name, address, panVat, phone, email, logo, settings, registrationNumber, website, description, additionalInfo }) =>
-    ({ name, address, panVat, phone, email, logo, settings, registrationNumber, website, description, additionalInfo }))(req.body);
+  const updates = (({ name, address, panVat, phone, email, logo, settings, registrationNumber, website, description, additionalInfo, location, checkInRadiusMeters }) =>
+    ({ name, address, panVat, phone, email, logo, settings, registrationNumber, website, description, additionalInfo, location, checkInRadiusMeters }))(req.body);
   Object.keys(updates).forEach((k) => updates[k] === undefined && delete updates[k]);
 
   const companyId = req.user.company._id || req.user.company;
