@@ -6,6 +6,7 @@ const payrollSchema = new mongoose.Schema(
     company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', default: null }, // null => system employee payroll
     month: { type: String, required: true }, // YYYY-MM
     basicSalary: { type: Number, required: true, min: 0 },
+    dailyAllowance: { type: Number, default: 0, min: 0 },
     allowance: { type: Number, default: 0, min: 0 },
     bonus: { type: Number, default: 0, min: 0 },
     deductions: {

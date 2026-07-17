@@ -208,7 +208,7 @@ export const payrollDetailPdf = asyncHandler(async (req, res) => {
 
   const deductions = payroll.deductions || {};
   const totalDeductions = (deductions.absent || 0) + (deductions.tax || 0) + (deductions.other || 0);
-  const gross = (payroll.basicSalary || 0) + (payroll.allowance || 0) + (payroll.bonus || 0);
+  const absentDays = Math.max(payroll.workingDays - (payroll.presentDays + (payroll.paidLeaveDays || 0)), 0);
 
   audit({ req, action: 'EXPORT_PAYROLL_PDF', entity: 'Report', entityId: payroll._id });
   sendPdf(res, {
@@ -218,28 +218,41 @@ export const payrollDetailPdf = asyncHandler(async (req, res) => {
     company: reportCompany,
     sections: [
       {
-        heading: 'Summary',
+        heading: 'Employee Details',
         lines: [
-          `Staff: ${payroll.staff?.name || '-'}`,
+          `Staff Name: ${payroll.staff?.name || '-'}`,
           `Email: ${payroll.staff?.email || '-'}`,
+          `Position: ${payroll.staff?.position || 'Staff'}`,
           `Month: ${payroll.month}`,
           `Status: ${payroll.status}`,
-          `Gross Salary: ${gross.toLocaleString()}`,
-          `Net Salary: ${payroll.netSalary?.toLocaleString() || 0}`,
-          `Paid At: ${payroll.paidAt ? new Date(payroll.paidAt).toLocaleString() : '-'}`,
         ],
       },
       {
-        heading: 'Pay Breakdown',
+        heading: 'Pay Details',
         lines: [
           `Basic Salary: ${payroll.basicSalary?.toLocaleString() || 0}`,
-          `Allowance: ${payroll.allowance?.toLocaleString() || 0}`,
+          `Allowances per day: ${payroll.dailyAllowance?.toLocaleString() || 0}`,
+          `Present Days: ${payroll.presentDays || 0}`,
+          `Working Days: ${payroll.workingDays || 0}`,
+          `Absent Days: ${absentDays}`,
           `Bonus: ${payroll.bonus?.toLocaleString() || 0}`,
+        ],
+      },
+      {
+        heading: 'Calculations & Deductions',
+        lines: [
+          `Total Allowances (Present Days × Allowance/day): ${payroll.allowance?.toLocaleString() || 0}`,
           `Absent Deduction: ${deductions.absent?.toLocaleString() || 0}`,
           `Tax Deduction: ${deductions.tax?.toLocaleString() || 0}`,
           `Other Deduction: ${deductions.other?.toLocaleString() || 0}`,
           `Total Deductions: ${totalDeductions.toLocaleString()}`,
-          `Present / Working Days: ${payroll.presentDays || 0} / ${payroll.workingDays || 0}`,
+        ],
+      },
+      {
+        heading: 'Net Payable',
+        lines: [
+          `Net Payable Amount: ${payroll.netSalary?.toLocaleString() || 0}`,
+          `Paid At: ${payroll.paidAt ? new Date(payroll.paidAt).toLocaleString() : '-'}`,
         ],
       },
       {

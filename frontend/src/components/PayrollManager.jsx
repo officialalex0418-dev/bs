@@ -1,5 +1,5 @@
 /** Shared payroll UI for super admin (scope=system) and company panel. */
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Wallet, FileDown, CheckCircle2, FileText } from 'lucide-react';
 import { api, downloadFile } from '@/api/client';
 import { Card, Button, Input, Table, Badge, Spinner, Pagination, Modal, Select, Textarea, DatePicker, MonthPicker } from '@/components/ui';
@@ -8,17 +8,17 @@ import { useAuth } from '@/context/AuthContext';
 
 const emptyForm = {
   basicSalary: 0,
+  dailyAllowance: 0,
   allowance: 0,
   bonus: 0,
   deductions: { absent: 0, tax: 0, other: 0 },
   presentDays: 0,
   workingDays: 0,
+  paidLeaveDays: 0,
   status: 'GENERATED',
   paidAt: '',
   remarks: '',
 };
-
-const totalDeductions = (p) => (p.deductions?.absent || 0) + (p.deductions?.tax || 0) + (p.deductions?.other || 0);
 
 export default function PayrollManager({ scope }) {
   const { user } = useAuth();
@@ -90,6 +90,7 @@ export default function PayrollManager({ scope }) {
       setDetail(payroll);
       setDetailForm({
         basicSalary: payroll.basicSalary || 0,
+        dailyAllowance: payroll.dailyAllowance || 0,
         allowance: payroll.allowance || 0,
         bonus: payroll.bonus || 0,
         deductions: {
@@ -99,6 +100,7 @@ export default function PayrollManager({ scope }) {
         },
         presentDays: payroll.presentDays || 0,
         workingDays: payroll.workingDays || 0,
+        paidLeaveDays: payroll.paidLeaveDays || 0,
         status: payroll.status || 'GENERATED',
         paidAt: payroll.paidAt ? payroll.paidAt.slice(0, 10) : '',
         remarks: payroll.remarks || '',
@@ -110,6 +112,43 @@ export default function PayrollManager({ scope }) {
     }
   };
 
+  // Real-time calculation logic for the form
+  const calculatedFields = useMemo(() => {
+    const basic = Number(detailForm.basicSalary) || 0;
+    const dailyAllow = Number(detailForm.dailyAllowance) || 0;
+    const present = Number(detailForm.presentDays) || 0;
+    const working = Number(detailForm.workingDays) || 0;
+    const paidLeave = Number(detailForm.paidLeaveDays) || 0;
+    const bonus = Number(detailForm.bonus) || 0;
+    const otherDeduction = Number(detailForm.deductions.other) || 0;
+
+    const absentDays = Math.max(working - (present + paidLeave), 0);
+
+    // Total Allowances = Present Days * Allowances per day
+    const totalAllowance = Math.round(present * dailyAllow);
+
+    // Absent Deduction = ((Basic Salary * 12) / 365) * No of Absent Days
+    const dailyRate = (basic * 12) / 365;
+    const absentDeduction = Math.round(dailyRate * absentDays);
+
+    // Tax Deduction = (Basic Salary - Absent Deduction) * 1%
+    const taxDeduction = Math.round(Math.max(basic - absentDeduction, 0) * 0.01);
+
+    const totalDeductions = absentDeduction + taxDeduction + otherDeduction;
+
+    // Net Payable Amount = Basic Salary - Absent deduction - Tax Deduction + Total allowances + Bonus
+    const netSalary = Math.max(Math.round(basic - absentDeduction - taxDeduction + totalAllowance + bonus - otherDeduction), 0);
+
+    return {
+      absentDays,
+      totalAllowance,
+      absentDeduction,
+      taxDeduction,
+      totalDeductions,
+      netSalary
+    };
+  }, [detailForm]);
+
   const saveDetail = async (e) => {
     e.preventDefault();
     if (!detail) return;
@@ -118,11 +157,12 @@ export default function PayrollManager({ scope }) {
     try {
       const payload = {
         basicSalary: Number(detailForm.basicSalary),
-        allowance: Number(detailForm.allowance),
+        dailyAllowance: Number(detailForm.dailyAllowance),
+        allowance: calculatedFields.totalAllowance,
         bonus: Number(detailForm.bonus),
         deductions: {
-          absent: Number(detailForm.deductions.absent),
-          tax: Number(detailForm.deductions.tax),
+          absent: calculatedFields.absentDeduction,
+          tax: calculatedFields.taxDeduction,
           other: Number(detailForm.deductions.other),
         },
         presentDays: Number(detailForm.presentDays),
@@ -133,7 +173,7 @@ export default function PayrollManager({ scope }) {
       };
       const { data } = await api.patch(`/payroll/${detail._id}`, payload);
       setDetail(data.data.payroll);
-      setMessage('Payroll updated with remarks.');
+      setMessage('Payroll updated successfully.');
       await load();
     } catch (err) {
       setDetailError(err.response?.data?.message || 'Update failed');
@@ -184,7 +224,7 @@ export default function PayrollManager({ scope }) {
               <td className="table-td">{dateFormat === 'BS' ? toNepaliMonth(p.month) : p.month}</td>
               <td className="table-td">{formatMoney(p.basicSalary)}</td>
               <td className="table-td text-emerald-600">+{formatMoney(p.allowance)}</td>
-              <td className="table-td text-red-500">−{formatMoney(totalDeductions(p))}</td>
+              <td className="table-td text-red-500">−{formatMoney((p.deductions?.absent || 0) + (p.deductions?.tax || 0) + (p.deductions?.other || 0))}</td>
               <td className="table-td">{p.presentDays}/{p.workingDays}</td>
               <td className="table-td font-bold">{formatMoney(p.netSalary)}</td>
               <td className="table-td">
@@ -253,17 +293,17 @@ export default function PayrollManager({ scope }) {
         ) : detail ? (
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Card className="p-4">
-                <p className="text-sm font-semibold">Staff</p>
-                <p className="mt-1 text-sm text-slate-600">{detail.staff?.name}</p>
+              <Card className="p-4 bg-slate-50 dark:bg-slate-800/50">
+                <p className="text-sm font-semibold">Staff Information</p>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{detail.staff?.name}</p>
                 <p className="text-xs text-slate-400">{detail.staff?.email}</p>
                 <p className="text-xs text-slate-400">{detail.staff?.position || 'Staff'}</p>
               </Card>
-              <Card className="p-4">
-                <p className="text-sm font-semibold">Summary</p>
-                <p className="mt-1 text-sm text-slate-600">Month: {dateFormat === 'BS' ? toNepaliMonth(detail.month) : detail.month}</p>
-                <p className="text-sm text-slate-600">Net Salary: {formatMoney(detail.netSalary)}</p>
-                <p className="text-xs text-slate-400">Generated by {detail.generatedBy?.name || 'system'}</p>
+              <Card className="p-4 bg-slate-50 dark:bg-slate-800/50">
+                <p className="text-sm font-semibold">Payroll Summary</p>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Month: {dateFormat === 'BS' ? toNepaliMonth(detail.month) : detail.month}</p>
+                <p className="text-sm font-bold text-primary-600">Net Payable: {formatMoney(calculatedFields.netSalary)}</p>
+                <p className="text-xs text-slate-400">Status: {detail.status}</p>
               </Card>
             </div>
 
@@ -271,34 +311,62 @@ export default function PayrollManager({ scope }) {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <Input label="Basic Salary" type="number" min="0" value={detailForm.basicSalary}
                   onChange={(e) => setDetailForm({ ...detailForm, basicSalary: e.target.value })} />
-                <Input label="Allowance" type="number" min="0" value={detailForm.allowance}
-                  onChange={(e) => setDetailForm({ ...detailForm, allowance: e.target.value })} />
+
+                <Input label="Allowances per day" type="number" min="0" value={detailForm.dailyAllowance}
+                  onChange={(e) => setDetailForm({ ...detailForm, dailyAllowance: e.target.value })} />
+
                 <Input label="Bonus" type="number" min="0" value={detailForm.bonus}
                   onChange={(e) => setDetailForm({ ...detailForm, bonus: e.target.value })} />
-                <Input label="Absent Deduction" type="number" min="0" value={detailForm.deductions.absent}
-                  onChange={(e) => setDetailForm({ ...detailForm, deductions: { ...detailForm.deductions, absent: e.target.value } })} />
-                <Input label="Tax Deduction" type="number" min="0" value={detailForm.deductions.tax}
-                  onChange={(e) => setDetailForm({ ...detailForm, deductions: { ...detailForm.deductions, tax: e.target.value } })} />
-                <Input label="Other Deduction" type="number" min="0" value={detailForm.deductions.other}
-                  onChange={(e) => setDetailForm({ ...detailForm, deductions: { ...detailForm.deductions, other: e.target.value } })} />
+
+                <Input label="Working Days" type="number" min="1" value={detailForm.workingDays}
+                  onChange={(e) => setDetailForm({ ...detailForm, workingDays: e.target.value })} />
+
                 <Input label="Present Days" type="number" min="0" value={detailForm.presentDays}
                   onChange={(e) => setDetailForm({ ...detailForm, presentDays: e.target.value })} />
-                <Input label="Working Days" type="number" min="0" value={detailForm.workingDays}
-                  onChange={(e) => setDetailForm({ ...detailForm, workingDays: e.target.value })} />
+
+                <Input label="Absent Days" type="number" disabled value={calculatedFields.absentDays} />
+
+                <div className="space-y-1">
+                    <label className="text-sm font-medium">Total Allowances</label>
+                    <div className="input bg-slate-100 dark:bg-slate-800 flex items-center h-10 px-3 text-sm text-slate-600">
+                        {formatMoney(calculatedFields.totalAllowance)}
+                    </div>
+                    <p className="text-[10px] text-slate-400 italic">Present Days × Allowances/day</p>
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-sm font-medium">Absent Deduction</label>
+                    <div className="input bg-red-50 dark:bg-red-900/10 flex items-center h-10 px-3 text-sm text-red-600">
+                        {formatMoney(calculatedFields.absentDeduction)}
+                    </div>
+                    <p className="text-[10px] text-slate-400 italic">((Salary × 12)/365) × Absent Days</p>
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-sm font-medium">Tax Deduction (1%)</label>
+                    <div className="input bg-red-50 dark:bg-red-900/10 flex items-center h-10 px-3 text-sm text-red-600">
+                        {formatMoney(calculatedFields.taxDeduction)}
+                    </div>
+                    <p className="text-[10px] text-slate-400 italic">(Salary - Absent Ded.) × 1%</p>
+                </div>
+
+                <Input label="Other Deduction" type="number" min="0" value={detailForm.deductions.other}
+                  onChange={(e) => setDetailForm({ ...detailForm, deductions: { ...detailForm.deductions, other: e.target.value } })} />
+
                 <DatePicker label="Paid At" value={detailForm.paidAt || ''}
                   onChange={(val) => setDetailForm({ ...detailForm, paidAt: val })} />
-              </div>
 
-              <Select
-                label="Status"
-                value={detailForm.status}
-                onChange={(e) => setDetailForm({ ...detailForm, status: e.target.value })}
-                options={[
-                  { value: 'DRAFT', label: 'Draft' },
-                  { value: 'GENERATED', label: 'Generated' },
-                  { value: 'PAID', label: 'Paid' },
-                ]}
-              />
+                <Select
+                    label="Status"
+                    value={detailForm.status}
+                    onChange={(e) => setDetailForm({ ...detailForm, status: e.target.value })}
+                    options={[
+                    { value: 'DRAFT', label: 'Draft' },
+                    { value: 'GENERATED', label: 'Generated' },
+                    { value: 'PAID', label: 'Paid' },
+                    ]}
+                />
+              </div>
 
               <Textarea
                 label="Remarks / reason for edit"
@@ -307,9 +375,15 @@ export default function PayrollManager({ scope }) {
                 placeholder="Add the reason for this change"
               />
 
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-4 py-3 text-sm dark:bg-slate-800/50">
-                <span>Gross: {formatMoney((Number(detailForm.basicSalary) || 0) + (Number(detailForm.allowance) || 0) + (Number(detailForm.bonus) || 0))}</span>
-                <span>Deductions: {formatMoney((Number(detailForm.deductions.absent) || 0) + (Number(detailForm.deductions.tax) || 0) + (Number(detailForm.deductions.other) || 0))}</span>
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-primary-50 px-4 py-4 text-sm dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/30">
+                <div className="flex flex-col">
+                    <span className="text-xs text-slate-500 uppercase font-bold tracking-wider">Final Calculation</span>
+                    <span className="text-lg font-bold text-primary-700 dark:text-primary-300">Net Payable: {formatMoney(calculatedFields.netSalary)}</span>
+                </div>
+                <div className="flex gap-4 text-xs text-slate-600 dark:text-slate-400">
+                    <div>Gross Additions: <span className="font-bold text-emerald-600">+{formatMoney(Number(detailForm.basicSalary) + calculatedFields.totalAllowance + Number(detailForm.bonus))}</span></div>
+                    <div>Total Deductions: <span className="font-bold text-red-600">−{formatMoney(calculatedFields.totalDeductions)}</span></div>
+                </div>
               </div>
 
               {detail.editHistory?.length ? (

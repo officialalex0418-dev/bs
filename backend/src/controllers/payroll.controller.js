@@ -134,23 +134,28 @@ export const generatePayroll = asyncHandler(async (req, res) => {
     }
 
     const effectivePresentDays = Math.min(presentDays + paidLeaveDays, totalWorkingDays);
-    const perDay = staff.basicSalary / totalWorkingDays || 0;
     const absentDays = Math.max(totalWorkingDays - effectivePresentDays, 0);
-    const absentDeduction = Math.round(perDay * absentDays);
 
-    // Using monthly fixed allowances + daily allowances (per present day)
-    const monthlyAllowance = Number(staff.allowances || 0);
-    const dailyAllowance = (staff.dailyAllowance || 0) * presentDays;
-    const allowance = monthlyAllowance + dailyAllowance;
+    // FORMULA: Absent Deduction = ((Basic Salary * 12) / 365) * No of Absent Days
+    const dailyRateForDeduction = (staff.basicSalary * 12) / 365;
+    const absentDeduction = Math.round(dailyRateForDeduction * absentDays);
 
-    const tax = Math.round(staff.basicSalary * 0.01); // 1% Social Security Tax
-    const netSalary = Math.max(Math.round(staff.basicSalary + allowance - absentDeduction - tax), 0);
+    // FORMULA: Total Allowances = Present Days * Allowances per day
+    const allowancePerDay = staff.dailyAllowance || 0;
+    const allowance = Math.round(presentDays * allowancePerDay);
+
+    // FORMULA: Tax Deduction = (Basic Salary - Absent Deduction) * 1%
+    const tax = Math.round(Math.max(staff.basicSalary - absentDeduction, 0) * 0.01);
+
+    // FORMULA: Net Payable Amount = Basic Salary - Absent deduction - Tax Deduction + Total allowances
+    const netSalary = Math.max(Math.round(staff.basicSalary - absentDeduction - tax + allowance), 0);
 
     const payroll = await Payroll.create({
       staff: staff._id,
       company: company?._id || null,
       month,
       basicSalary: staff.basicSalary,
+      dailyAllowance: allowancePerDay,
       allowance,
       paidLeaveDays,
       deductions: { absent: absentDeduction, tax, other: 0 },
@@ -221,7 +226,7 @@ export const updatePayroll = asyncHandler(async (req, res) => {
     throw ApiError.forbidden('Payroll outside your company');
   }
 
-  const editable = ['basicSalary', 'allowance', 'bonus', 'presentDays', 'workingDays', 'status', 'paidAt'];
+  const editable = ['basicSalary', 'dailyAllowance', 'allowance', 'bonus', 'presentDays', 'workingDays', 'status', 'paidAt'];
   const changes = {};
 
   for (const key of editable) {
@@ -231,13 +236,28 @@ export const updatePayroll = asyncHandler(async (req, res) => {
     }
   }
 
+  // Recalculate based on formulas if values changed
+  const absentDays = Math.max(payroll.workingDays - (payroll.presentDays + (payroll.paidLeaveDays || 0)), 0);
+  const dailyRateForDeduction = (payroll.basicSalary * 12) / 365;
+  const autoAbsentDeduction = Math.round(dailyRateForDeduction * absentDays);
+
+  const autoAllowance = Math.round(payroll.presentDays * (payroll.dailyAllowance || 0));
+  const autoTax = Math.round(Math.max(payroll.basicSalary - autoAbsentDeduction, 0) * 0.01);
+
   if (req.body.deductions) {
     payroll.deductions = {
-      absent: req.body.deductions.absent ?? payroll.deductions?.absent ?? 0,
-      tax: req.body.deductions.tax ?? payroll.deductions?.tax ?? 0,
+      absent: req.body.deductions.absent ?? autoAbsentDeduction,
+      tax: req.body.deductions.tax ?? autoTax,
       other: req.body.deductions.other ?? payroll.deductions?.other ?? 0,
     };
-    changes.deductions = { from: req.body.deductions, to: payroll.deductions };
+  } else {
+    // Apply auto updates if not explicitly provided
+    payroll.deductions.absent = autoAbsentDeduction;
+    payroll.deductions.tax = autoTax;
+  }
+
+  if (req.body.allowance === undefined) {
+    payroll.allowance = autoAllowance;
   }
 
   const hasBusinessChange = Object.keys(changes).length > 0;
@@ -256,8 +276,9 @@ export const updatePayroll = asyncHandler(async (req, res) => {
 
   const deductions = payroll.deductions || {};
   const totalDeductions = (deductions.absent || 0) + (deductions.tax || 0) + (deductions.other || 0);
-  const gross = (payroll.basicSalary || 0) + (payroll.allowance || 0) + (payroll.bonus || 0);
-  payroll.netSalary = Math.max(Math.round(gross - totalDeductions), 0);
+
+  // FORMULA: Net Payable Amount = Basic Salary - Absent deduction - Tax Deduction + Total allowances + Bonus
+  payroll.netSalary = Math.max(Math.round(payroll.basicSalary - (deductions.absent || 0) - (deductions.tax || 0) + payroll.allowance + (payroll.bonus || 0)), 0);
 
   await payroll.save();
   audit({ req, action: 'UPDATE_PAYROLL', entity: 'Payroll', entityId: payroll._id, meta: { reason } });
