@@ -10,7 +10,6 @@ function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
   const [form, setForm] = useState({
     recipientType: 'group',
     recipientId: '',
-    selectedUsers: [],
     subject: '',
     message: ''
   });
@@ -30,19 +29,14 @@ function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
         type: mode,
         isGroup: form.recipientType === 'group' || form.recipientType === 'create_group',
         recipientId: form.recipientType === 'individual' ? form.recipientId : null,
-        subject: mode === 'COMPLAINT' ? form.subject : 'New Chat',
+        subject: mode === 'COMPLAINT' || form.recipientType === 'create_group' ? form.subject : 'Direct Message',
         message: form.message
       });
       onSuccess();
       onClose();
-      setForm({ recipientType: 'group', recipientId: '', selectedUsers: [], subject: '', message: '' });
+      setForm({ recipientType: 'group', recipientId: '', subject: '', message: '' });
     } catch (err) {
-      const msg = err.response?.data?.message || '';
-      if (msg.includes('too large')) {
-        alert('The image or file you are trying to send is too large. Please try a smaller file (under 50MB).');
-      } else {
-        alert(`Could not start the ${mode.toLowerCase()}. Please check your connection.`);
-      }
+      alert(`Could not start the ${mode.toLowerCase()}. Please check your connection.`);
     } finally {
       setBusy(false);
     }
@@ -97,24 +91,10 @@ function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
           />
         )}
 
-        {form.recipientType === 'group' && (
-          <p className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
-            Visible to all company members.
-          </p>
-        )}
-
-        {form.recipientType === 'create_group' && (
-          <div className="space-y-2">
-            <p className="text-[11px] text-amber-600 bg-amber-50 p-2 rounded border border-amber-100 flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" /> Custom groups are coming soon. Using Company Group for now.
-            </p>
-          </div>
-        )}
-
-        {mode === 'COMPLAINT' && (
+        {(mode === 'COMPLAINT' || form.recipientType === 'create_group') && (
           <Input
-            label="Subject"
-            placeholder="What is the complaint about?"
+            label={form.recipientType === 'create_group' ? "Group Name" : "Subject"}
+            placeholder={form.recipientType === 'create_group' ? "e.g. Sales, Marketing..." : "What is the complaint about?"}
             value={form.subject}
             onChange={(e) => setForm({ ...form, subject: e.target.value })}
             required
@@ -123,7 +103,7 @@ function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
 
         <Textarea
           label="Message"
-          placeholder={mode === 'COMPLAINT' ? "Describe your complaint in detail..." : "Type your first message..."}
+          placeholder="Type your message here..."
           rows={4}
           value={form.message}
           onChange={(e) => setForm({ ...form, message: e.target.value })}
@@ -212,9 +192,11 @@ function ChatView({ complaint, onBack }) {
             {complaint.isGroup ? <Users className="h-5 w-5" /> : (complaint.recipient?.name?.[0] || 'C')}
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight truncate">{complaint.subject}</h3>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight truncate">
+              {complaint.type === 'CHAT' && !complaint.isGroup ? (complaint.recipient?.name || 'User') : complaint.subject}
+            </h3>
             <p className="text-[10px] text-slate-500 truncate">
-              {complaint.type} · {complaint.isGroup ? 'Group' : `with ${complaint.recipient?.name || 'Manager'}`}
+              {complaint.isGroup ? 'Company Group' : `Private Chat`}
             </p>
           </div>
         </div>
@@ -319,7 +301,7 @@ export default function Complaints() {
           </button>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => setModal({ open: true, mode: 'CHAT' })}>
+          <Button size="sm" variant="outline" className="bg-white" onClick={() => setModal({ open: true, mode: 'CHAT' })}>
             <MessageSquare className="h-4 w-4 mr-1" /> New Chat
           </Button>
           <Button size="sm" onClick={() => setModal({ open: true, mode: 'COMPLAINT' })}>
@@ -345,7 +327,9 @@ export default function Complaints() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-0.5">
-                <h3 className="font-bold text-slate-900 dark:text-slate-100 truncate">{c.subject}</h3>
+                <h3 className="font-bold text-slate-900 dark:text-slate-100 truncate">
+                   {tab === 'CHAT' && !c.isGroup ? (c.recipient?.name || 'User') : c.subject}
+                </h3>
                 <span className="text-[10px] text-slate-400">{formatDate(c.lastMessageAt || c.updatedAt, dateFormat)}</span>
               </div>
               <div className="flex items-center justify-between">
@@ -353,7 +337,9 @@ export default function Complaints() {
                   {c.lastMessageSender && <span className="font-semibold text-slate-400 mr-1">{c.lastMessageSender._id === user._id ? 'You:' : `${c.lastMessageSender.name}:`}</span>}
                   {c.lastMessage || c.message}
                 </p>
-                <Badge color={c.isGroup ? "gray" : "blue"} className="text-[9px] uppercase font-bold">{c.isGroup ? 'GROUP' : (c.recipient?.name || 'Manager')}</Badge>
+                <Badge color={c.isGroup ? "gray" : "blue"} className="text-[9px] uppercase font-bold tracking-wider">
+                  {c.isGroup ? 'GROUP' : (c.recipient?.name || 'Manager')}
+                </Badge>
               </div>
             </div>
           </div>
