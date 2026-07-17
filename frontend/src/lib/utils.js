@@ -1,8 +1,10 @@
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { adToBs } from './nepaliDate';
+import { adToBs, bsToAd, getBsMonthInfo } from './nepaliDate';
 
 export const cn = (...inputs) => twMerge(clsx(inputs));
+
+export { adToBs, bsToAd, getBsMonthInfo };
 
 /**
  * AD to BS Conversion

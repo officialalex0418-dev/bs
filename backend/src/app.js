@@ -25,7 +25,22 @@ app.use(helmet({
 }));
 app.use(
   cors({
-    origin: env.isProd ? [env.clientUrl] : [env.clientUrl, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const allowedOrigins = [
+        env.clientUrl,
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://127.0.0.1:5173',
+        'https://bs-ebon-omega.vercel.app',
+        'https://business-sarthi.vercel.app'
+      ];
+      if (allowedOrigins.includes(origin) || !env.isProd) {
+        return callback(null, true);
+      }
+      console.warn(`[CORS REJECTED] Origin: ${origin}`);
+      return callback(new Error('CORS blocked'));
+    },
     credentials: true,
   })
 );
