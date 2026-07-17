@@ -74,17 +74,27 @@ export const trackingExcel = asyncHandler(async (req, res) => {
   });
 });
 
-/** GET /reports/attendance/excel?month=YYYY-MM */
+/** GET /reports/attendance/excel?month=YYYY-MM&fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD */
 export const attendanceExcel = asyncHandler(async (req, res) => {
-  const month = req.query.month || new Date().toISOString().slice(0, 7);
-  const filter = { date: { $regex: `^${month}` } };
+  const filter = {};
   if (req.companyId) filter.company = req.companyId;
+
+  let filename = 'attendance';
+
+  if (req.query.fromDate && req.query.toDate) {
+    filter.date = { $gte: req.query.fromDate, $lte: req.query.toDate };
+    filename += `-${req.query.fromDate}-to-${req.query.toDate}`;
+  } else {
+    const month = req.query.month || new Date().toISOString().slice(0, 7);
+    filter.date = { $regex: `^${month}` };
+    filename += `-${month}`;
+  }
 
   const records = await Attendance.find(filter).populate('staff', 'name position').sort('date').lean();
 
   audit({ req, action: 'EXPORT_ATTENDANCE_EXCEL', entity: 'Report' });
   await sendExcel(res, {
-    filename: `attendance-${month}`,
+    filename,
     sheetName: 'Attendance',
     columns: [
       { header: 'Date', key: 'date', width: 14 },

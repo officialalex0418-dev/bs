@@ -1,17 +1,26 @@
 import { useEffect, useState, useCallback } from 'react';
 import { FileDown, Check, X, Eye } from 'lucide-react';
 import { api, downloadFile } from '@/api/client';
-import { Card, Button, Table, Badge, Spinner, Pagination, DatePicker, Modal, Textarea } from '@/components/ui';
-import { formatTime, toNepaliMonth, formatDateTime } from '@/lib/utils';
+import { Card, Button, Table, Badge, Spinner, Pagination, DatePicker, Modal, Textarea, MonthPicker } from '@/components/ui';
+import { formatTime, toNepaliMonth, formatDateTime, todayStr } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
+import { adToBs, getBsMonthInfo, bsToAd } from '@/lib/nepaliDate';
 
 export default function AttendancePage() {
   const { user } = useAuth();
   const dateFormat = user?.company?.settings?.dateFormat || 'BS';
   const [data, setData] = useState(null);
   const [page, setPage] = useState(1);
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayStr());
   const [tab, setTab] = useState('logs'); // logs | requests
+
+  const [reportMonth, setReportMonth] = useState(() => {
+    if (dateFormat === 'BS') {
+      const bs = adToBs(new Date());
+      return `${bs.year}-${String(bs.month).padStart(2, '0')}`;
+    }
+    return new Date().toISOString().slice(0, 7);
+  });
 
   const [requests, setRequests] = useState([]);
   const [reqLoading, setReqLoading] = useState(false);
@@ -47,11 +56,38 @@ export default function AttendancePage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Attendance</h1>
-        <div className="flex items-center gap-2">
-          {tab === 'logs' && <DatePicker className="w-40" value={date} onChange={(val) => { setDate(val); setPage(1); }} />}
-          <Button variant="outline" onClick={() => downloadFile(`/reports/attendance/excel?month=${date.slice(0, 7)}`, `attendance-${date.slice(0, 7)}.xlsx`)}>
-            <FileDown className="h-4 w-4" /> {dateFormat === 'BS' ? toNepaliMonth(date.slice(0, 7)) : 'Month'} Excel
-          </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {tab === 'logs' && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">View Day:</span>
+              <DatePicker className="w-40" value={date} onChange={(val) => { setDate(val); setPage(1); }} />
+            </div>
+          )}
+          <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 hidden md:block" />
+          <div className="flex items-center gap-2">
+            <MonthPicker value={reportMonth} onChange={setReportMonth} className="w-40" />
+            <Button
+              variant="outline"
+              onClick={() => {
+                let url = '/reports/attendance/excel';
+                if (dateFormat === 'BS') {
+                  const [y, m] = reportMonth.split('-').map(Number);
+                  const info = getBsMonthInfo(y, m);
+                  if (info) {
+                    const from = bsToAd(`${reportMonth}-01`);
+                    const to = bsToAd(`${reportMonth}-${String(info.daysInMonth).padStart(2, '0')}`);
+                    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    url += `?fromDate=${fmt(from)}&toDate=${fmt(to)}`;
+                  }
+                } else {
+                  url += `?month=${reportMonth}`;
+                }
+                downloadFile(url, `attendance-${reportMonth}.xlsx`);
+              }}
+            >
+              <FileDown className="h-4 w-4 mr-1.5" /> {dateFormat === 'BS' ? toNepaliMonth(reportMonth) : 'Export'} Excel
+            </Button>
+          </div>
         </div>
       </div>
 
