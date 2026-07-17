@@ -5,8 +5,9 @@ import { NativeBiometric } from '@capgo/capacitor-native-biometric';
 import { Device } from '@capacitor/device';
 import { useAuth } from '@/context/AuthContext';
 import { useAppPermissions } from '@/hooks/useAppPermissions';
-import { Card, CardHeader, CardBody, Button, Table, Badge, Spinner, Modal, Input, Textarea } from '@/components/ui';
+import { Card, CardHeader, CardBody, Button, Table, Badge, Spinner, Modal, Input, Textarea, MonthPicker } from '@/components/ui';
 import { formatTime, formatDate, toNepaliMonth, toNepaliDate, todayStr } from '@/lib/utils';
+import { adToBs } from '@/lib/nepaliDate';
 
 async function getPosition() {
   return new Promise((resolve, reject) => {
@@ -37,6 +38,14 @@ export default function StaffAttendance() {
   const [reqForm, setReqForm] = useState({ date: todayStr(), checkInTime: '', checkOutTime: '', reason: '' });
   const [reqLoading, setReqLoading] = useState(false);
 
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    if (dateFormat === 'BS') {
+      const bs = adToBs(new Date());
+      return `${bs.year}-${String(bs.month).padStart(2, '0')}`;
+    }
+    return new Date().toISOString().slice(0, 7);
+  });
+
   useEffect(() => {
     (async () => {
       const info = await Device.getInfo();
@@ -50,12 +59,31 @@ export default function StaffAttendance() {
 
   const load = useCallback(async () => {
     try {
-      const { data } = await api.get('/attendance/me');
+      const params = {};
+      if (dateFormat === 'BS') {
+        const [y, m] = selectedMonth.split('-').map(Number);
+        const info = getBsMonthInfo(y, m);
+        if (info) {
+          const from = bsToAd(`${selectedMonth}-01`);
+          const to = bsToAd(`${selectedMonth}-${String(info.daysInMonth).padStart(2, '0')}`);
+          // Use UTC-friendly formatting to match backend todayStr (YYYY-MM-DD)
+          const fmt = (d) => {
+             const pad = (n) => String(n).padStart(2, '0');
+             return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+          };
+          params.fromDate = fmt(from);
+          params.toDate = fmt(to);
+        }
+      } else {
+        params.month = selectedMonth;
+      }
+
+      const { data } = await api.get('/attendance/me', { params });
       setData(data.data);
     } catch (err) {
       console.error(err);
     }
-  }, []);
+  }, [selectedMonth, dateFormat]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -271,7 +299,7 @@ export default function StaffAttendance() {
             <CardBody className="p-6">
               <Calendar className="h-8 w-8 mb-4 opacity-50" />
               <p className="text-xs uppercase font-bold tracking-widest opacity-80">
-                {dateFormat === 'BS' ? toNepaliMonth(data.summary.month) : 'This Month'}
+                {dateFormat === 'BS' ? toNepaliMonth(selectedMonth) : 'This Month'}
               </p>
               <h3 className="text-3xl font-bold mt-1">{data.summary.presentDays} <span className="text-sm font-normal opacity-80">Days</span></h3>
               <p className="text-xs mt-4 font-medium opacity-90">Present Days Record</p>
@@ -281,7 +309,7 @@ export default function StaffAttendance() {
           <Card className={today?.checkIn?.isLate ? 'bg-red-50 border-red-100' : 'bg-slate-50'}>
             <CardBody className="p-6 flex flex-col justify-center text-center">
               <p className="text-xs uppercase font-bold tracking-widest text-slate-400">
-                {dateFormat === 'BS' ? `${toNepaliMonth(data.summary.month)} Lates` : 'Monthly Lates'}
+                {dateFormat === 'BS' ? `${toNepaliMonth(selectedMonth)} Lates` : 'Monthly Lates'}
               </p>
               <h3 className={`text-3xl font-bold mt-1 ${data.summary.lateDays > 0 ? 'text-red-600' : 'text-slate-600'}`}>
                 {data.summary.lateDays}
@@ -294,8 +322,17 @@ export default function StaffAttendance() {
       <Card>
         <CardHeader
           title="Attendance History"
-          subtitle={`Month: ${dateFormat === 'BS' ? toNepaliMonth(data.summary.month) : data.summary.month}`}
-          action={<Button variant="ghost" size="sm" onClick={load}>Refresh Logs</Button>}
+          subtitle={`Month: ${dateFormat === 'BS' ? toNepaliMonth(selectedMonth) : selectedMonth}`}
+          action={
+            <div className="flex items-center gap-2">
+              <MonthPicker
+                value={selectedMonth}
+                onChange={setSelectedMonth}
+                className="w-40 !py-1.5 !text-xs"
+              />
+              <Button variant="ghost" size="sm" onClick={load}>Refresh</Button>
+            </div>
+          }
         />
         <Table
           columns={['Date', 'Time In', 'Time Out', 'Working Hours', 'Status']}

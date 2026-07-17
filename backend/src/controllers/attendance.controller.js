@@ -202,16 +202,20 @@ export const checkOut = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { attendance } });
 });
 
-/** GET /attendance/me?month=YYYY-MM */
+/** GET /attendance/me?month=YYYY-MM&fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD */
 export const myAttendance = asyncHandler(async (req, res) => {
-  const month = req.query.month || todayStr().slice(0, 7);
   const date = todayStr();
+  const filter = { staff: req.user._id };
+
+  if (req.query.fromDate && req.query.toDate) {
+    filter.date = { $gte: req.query.fromDate, $lte: req.query.toDate };
+  } else {
+    const month = req.query.month || todayStr().slice(0, 7);
+    filter.date = { $regex: `^${month}` };
+  }
 
   const [items, restriction] = await Promise.all([
-    Attendance.find({
-      staff: req.user._id,
-      date: { $regex: `^${month}` },
-    }).sort('-date'),
+    Attendance.find(filter).sort('-date'),
     checkAttendanceRestriction(req.user, date)
   ]);
 
@@ -219,9 +223,12 @@ export const myAttendance = asyncHandler(async (req, res) => {
   const presentDays = items.filter((a) => ['PRESENT', 'HALF_DAY'].includes(a.status)).length;
   const today = items.find((a) => a.date === date);
 
+  // We return the period name based on what was requested
+  const summaryMonth = req.query.month || (req.query.fromDate ? `${req.query.fromDate} to ${req.query.toDate}` : todayStr().slice(0, 7));
+
   res.json({
     success: true,
-    data: { items, summary: { month, presentDays, lateDays }, today: today || null, restriction },
+    data: { items, summary: { month: summaryMonth, presentDays, lateDays }, today: today || null, restriction },
   });
 });
 

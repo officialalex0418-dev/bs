@@ -22,8 +22,14 @@ export const toNepaliDate = (date) => {
 export const toNepaliMonth = (dateStr) => {
   if (!dateStr || dateStr.length !== 7) return dateStr;
   const [y, m] = dateStr.split('-').map(Number);
-  // We assume the input string is already a BS YYYY-MM if it's coming from BS format logic
-  // But usually summary.month is AD YYYY-MM from backend.
+
+  // If year is > 2070, it's likely already a BS year
+  if (y >= 2070 && y <= 2100) {
+    const months = ['Baisakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin', 'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'];
+    return `${months[m - 1]} ${y}`;
+  }
+
+  // Otherwise treat as AD and convert
   const bs = adToBs(new Date(y, m - 1, 1));
   return bs ? `${bs.monthName} ${bs.year}` : dateStr;
 };
