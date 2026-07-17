@@ -24,6 +24,8 @@ export { default as Cheque } from './Cheque.js';
 export { default as Notification } from './Notification.js';
 export { default as Complaint } from './Complaint.js';
 export { default as ComplaintMessage } from './ComplaintMessage.js';
+export { default as Chat } from './Chat.js';
+export { default as ChatMessage } from './ChatMessage.js';
 export { default as Holiday } from './Holiday.js';
 export { default as AuditLog } from './AuditLog.js';
 export { default as Setting } from './Setting.js';

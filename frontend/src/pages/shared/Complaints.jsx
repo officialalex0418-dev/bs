@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Card, CardHeader, CardBody, Badge, Table, Spinner, Button, Input, Textarea, Modal, Select, Checkbox } from '@/components/ui';
 import { formatDate, formatTime, cn } from '@/lib/utils';
 
-function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
+function ConversationModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
   const [recipients, setRecipients] = useState([]);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({
@@ -38,15 +38,23 @@ function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
     e.preventDefault();
     setBusy(true);
     try {
+      const endpoint = mode === 'CHAT' ? '/chats' : '/complaints';
       const isCustomGroup = form.recipientType === 'create_group';
-      await api.post('/complaints', {
-        type: mode,
+
+      const payload = {
         isGroup: form.recipientType === 'group' || isCustomGroup,
         recipientId: form.recipientType === 'individual' ? form.recipientId : null,
         participants: isCustomGroup ? form.selectedParticipants : [],
-        subject: mode === 'COMPLAINT' || isCustomGroup ? form.subject : 'Direct Message',
         message: form.message
-      });
+      };
+
+      if (mode === 'COMPLAINT') {
+        payload.subject = form.subject;
+      } else if (isCustomGroup) {
+        payload.groupName = form.subject;
+      }
+
+      await api.post(endpoint, payload);
       onSuccess();
       onClose();
       setForm({ recipientType: 'group', recipientId: '', selectedParticipants: [], subject: '', message: '' });
@@ -59,7 +67,8 @@ function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
 
   const filteredRecipients = recipients.filter(r =>
     r.name.toLowerCase().includes(search.toLowerCase()) ||
-    r.role.toLowerCase().includes(search.toLowerCase())
+    (r.position || '').toLowerCase().includes(search.toLowerCase()) ||
+    (r.role || '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -143,12 +152,6 @@ function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
           </div>
         )}
 
-        {form.recipientType === 'group' && (
-          <p className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
-            Visible to all company members.
-          </p>
-        )}
-
         {(mode === 'COMPLAINT' || form.recipientType === 'create_group') && (
           <Input
             label={form.recipientType === 'create_group' ? "Group Name" : "Subject"}
@@ -179,7 +182,7 @@ function ComplaintModal({ open, onClose, onSuccess, mode = 'CHAT' }) {
   );
 }
 
-function ChatView({ complaint, onBack }) {
+function ChatView({ item, mode, onBack }) {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -188,14 +191,16 @@ function ChatView({ complaint, onBack }) {
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  const endpoint = mode === 'CHAT' ? `/chats/${item._id}/messages` : `/complaints/${item._id}/messages`;
+
   const loadMessages = useCallback(async () => {
     try {
-      const { data } = await api.get(`/complaints/${complaint._id}/messages`);
+      const { data } = await api.get(endpoint);
       setMessages(data.data);
     } finally {
       setLoading(false);
     }
-  }, [complaint._id]);
+  }, [endpoint]);
 
   useEffect(() => {
     loadMessages();
@@ -216,7 +221,7 @@ function ChatView({ complaint, onBack }) {
 
     setSending(true);
     try {
-      await api.post(`/complaints/${complaint._id}/messages`, {
+      await api.post(endpoint, {
         message: text,
         attachments
       });
@@ -249,14 +254,14 @@ function ChatView({ complaint, onBack }) {
             <ChevronLeft className="h-5 w-5" />
           </button>
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-300 text-slate-600 font-bold uppercase">
-            {complaint.isGroup ? <Users className="h-5 w-5" /> : (complaint.recipient?.name?.[0] || 'C')}
+            {item.isGroup ? <Users className="h-5 w-5" /> : (item.recipient?.name?.[0] || 'U')}
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight truncate">
-              {complaint.type === 'CHAT' && !complaint.isGroup ? (complaint.recipient?.name || 'User') : complaint.subject}
+              {mode === 'CHAT' && !item.isGroup ? (item.recipient?.name || 'User') : (item.subject || item.groupName)}
             </h3>
             <p className="text-[10px] text-slate-500 truncate">
-              {complaint.type} · {complaint.isGroup ? 'Group' : `Private Chat`}
+              {item.isGroup ? (item.groupName || 'Group') : `Private Chat`}
             </p>
           </div>
         </div>
@@ -310,7 +315,7 @@ function ChatView({ complaint, onBack }) {
 export default function Complaints() {
   const { user } = useAuth();
   const dateFormat = user?.company?.settings?.dateFormat || 'BS';
-  const [complaints, setComplaints] = useState([]);
+  const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [tab, setTab] = useState('CHAT'); // CHAT | COMPLAINT
@@ -318,12 +323,13 @@ export default function Complaints() {
 
   const load = useCallback(async () => {
     try {
-      const { data } = await api.get('/complaints');
-      setComplaints(data.data);
+      const endpoint = tab === 'CHAT' ? '/chats' : '/complaints';
+      const { data } = await api.get(endpoint);
+      setData(data.data);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tab]);
 
   useEffect(() => {
     load();
@@ -331,15 +337,12 @@ export default function Complaints() {
     return () => clearInterval(interval);
   }, [load]);
 
-  // Fix: complaints should be filtered strictly by type
-  const filtered = complaints.filter(c => (c.type || 'CHAT') === tab);
-
-  if (loading) return <Spinner />;
+  if (loading && data.length === 0) return <Spinner />;
 
   if (selected) {
     return (
       <div className="fixed inset-0 z-[60] bg-white dark:bg-slate-950 lg:relative lg:inset-auto lg:h-full lg:rounded-xl lg:overflow-hidden lg:shadow-xl lg:border dark:border-slate-800">
-        <ChatView complaint={selected} onBack={() => setSelected(null)} />
+        <ChatView item={selected} mode={tab} onBack={() => setSelected(null)} />
       </div>
     );
   }
@@ -349,13 +352,13 @@ export default function Complaints() {
       <div className="flex items-center justify-between px-2">
         <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
           <button
-            onClick={() => setTab('CHAT')}
+            onClick={() => { setTab('CHAT'); setLoading(true); }}
             className={cn("px-4 py-1.5 text-sm font-medium rounded-md transition-all", tab === 'CHAT' ? "bg-white dark:bg-slate-700 shadow-sm text-primary-600 dark:text-primary-400" : "text-slate-500")}
           >
             Chat
           </button>
           <button
-            onClick={() => setTab('COMPLAINT')}
+            onClick={() => { setTab('COMPLAINT'); setLoading(true); }}
             className={cn("px-4 py-1.5 text-sm font-medium rounded-md transition-all", tab === 'COMPLAINT' ? "bg-white dark:bg-slate-700 shadow-sm text-primary-600 dark:text-primary-400" : "text-slate-500")}
           >
             Complaint
@@ -372,24 +375,24 @@ export default function Complaints() {
       </div>
 
       <Card className="overflow-hidden divide-y dark:divide-slate-800">
-        {filtered.length === 0 ? (
+        {data.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-20 text-slate-400">
             <MessageSquare className="h-12 w-12 mb-2 opacity-20" />
             <p>No {tab.toLowerCase()}s yet</p>
           </div>
-        ) : filtered.map((c) => (
+        ) : data.map((c) => (
           <div
             key={c._id}
             onClick={() => setSelected(c)}
             className="flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition"
           >
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 font-bold text-lg uppercase">
-              {c.isGroup ? <Users className="h-6 w-6" /> : (c.recipient?.name?.[0] || 'C')}
+              {c.isGroup ? <Users className="h-6 w-6" /> : (c.recipient?.name?.[0] || 'U')}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-0.5">
                 <h3 className="font-bold text-slate-900 dark:text-slate-100 truncate">
-                   {tab === 'CHAT' && !c.isGroup ? (c.recipient?.name || 'User') : c.subject}
+                   {tab === 'CHAT' && !c.isGroup ? (c.recipient?.name || 'User') : (c.subject || c.groupName)}
                 </h3>
                 <span className="text-[10px] text-slate-400">{formatDate(c.lastMessageAt || c.updatedAt, dateFormat)}</span>
               </div>
@@ -407,7 +410,7 @@ export default function Complaints() {
         ))}
       </Card>
 
-      <ComplaintModal
+      <ConversationModal
         open={modal.open}
         mode={modal.mode}
         onClose={() => setModal({ ...modal, open: false })}

@@ -23,6 +23,7 @@ import * as payroll from '../controllers/payroll.controller.js';
 import * as cheque from '../controllers/cheque.controller.js';
 import * as dashboard from '../controllers/dashboard.controller.js';
 import * as complaint from '../controllers/complaint.controller.js';
+import * as chat from '../controllers/chat.controller.js';
 import * as designation from '../controllers/designation.controller.js';
 import * as companyConfig from '../controllers/companyConfig.controller.js';
 import * as report from '../controllers/report.controller.js';
@@ -188,6 +189,12 @@ r.post('/complaints', protect, validate({ body: schemas.complaintBody }), compla
 r.get('/complaints/recipients', protect, complaint.getRecipients);
 r.get('/complaints/:id/messages', protect, complaint.getComplaintMessages);
 r.post('/complaints/:id/messages', protect, complaint.addReply);
+
+// ============ CHATS ============
+r.get('/chats', protect, chat.getChats);
+r.post('/chats', protect, chat.createChat);
+r.get('/chats/:id/messages', protect, chat.getChatMessages);
+r.post('/chats/:id/messages', protect, chat.addChatMessage);
 
 // ============ DESIGNATIONS ============
 r.get('/designations', protect, authorize(...PLATFORM), designation.listDesignations);
