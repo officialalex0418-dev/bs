@@ -22,7 +22,7 @@ export default function DistributorDetails() {
   const [chequeForm, setChequeForm] = useState({ chequeNumber: '', bankName: '', issueDate: '', cashDate: '', amount: 0, remarks: '', status: 'ISSUED' });
   const [payForm, setPayForm] = useState({ amount: 0, method: 'Cash', remarks: '' });
   const [newInvForm, setNewInvForm] = useState({
-    items: [{ productName: '', productId: '', price: 0, quantity: 1, amount: 0 }],
+    items: [{ productName: '', productId: '', price: 0, mrp: 0, quantity: 1, amount: 0 }],
     discountPct: 0,
     vatPct: 13,
     paymentMethod: 'Credit',
@@ -347,7 +347,7 @@ export default function DistributorDetails() {
 
   const addEditRow = () => {
     const next = { ...editingInvoice };
-    next.items.push({ productName: '', price: 0, quantity: 1, amount: 0 });
+    next.items.push({ productName: '', price: 0, mrp: 0, quantity: 1, amount: 0 });
     setEditingInvoice(next);
   };
 
@@ -370,7 +370,7 @@ export default function DistributorDetails() {
   const addNewInvRow = () => {
     setNewInvForm({
       ...newInvForm,
-      items: [...newInvForm.items, { productName: '', productId: '', price: 0, quantity: 1, amount: 0 }]
+      items: [...newInvForm.items, { productName: '', productId: '', price: 0, mrp: 0, quantity: 1, amount: 0 }]
     });
   };
 
@@ -793,6 +793,7 @@ export default function DistributorDetails() {
                   <th className="px-2 py-3">S.N</th>
                   <th className="px-2 py-3">Product Name</th>
                   <th className="px-2 py-3">Batch</th>
+                  <th className="px-2 py-3 w-32">MRP</th>
                   <th className="px-2 py-3">Price</th>
                   <th className="px-2 py-3">Quantity</th>
                   <th className="px-2 py-3">Amount</th>
@@ -812,7 +813,10 @@ export default function DistributorDetails() {
                           updateNewInvRow(idx, 'productId', e.target.value);
                           updateNewInvRow(idx, 'productName', prod?.productName || '');
                           updateNewInvRow(idx, 'batch', prod?.batchNumber || '');
-                          if (prod) updateNewInvRow(idx, 'price', prod.sellingPrice);
+                          if (prod) {
+                            updateNewInvRow(idx, 'price', prod.sellingPrice);
+                            updateNewInvRow(idx, 'mrp', prod.mrp || 0);
+                          }
                         }}
                         options={[
                           { value: '', label: 'Select product...' },
@@ -823,6 +827,9 @@ export default function DistributorDetails() {
                     </td>
                     <td className="px-2 py-2">
                       <Input value={row.batch} onChange={e => updateNewInvRow(idx, 'batch', e.target.value)} placeholder="Batch" />
+                    </td>
+                    <td className="px-2 py-2">
+                      <div className="font-bold text-slate-600 dark:text-slate-400 text-sm">{formatMoney(row.mrp)}</div>
                     </td>
                     <td className="px-2 py-2">
                       <Input type="number" min="0" step="0.01" value={row.price} onChange={e => updateNewInvRow(idx, 'price', e.target.value)} required />
@@ -918,6 +925,7 @@ export default function DistributorDetails() {
                   <th className="px-2 py-3">S.N</th>
                   <th className="px-2 py-3">Product Name</th>
                   <th className="px-2 py-3">Batch</th>
+                  <th className="px-2 py-3 w-32">MRP</th>
                   <th className="px-2 py-3">Price</th>
                   <th className="px-2 py-3">Quantity</th>
                   <th className="px-2 py-3">Amount</th>
@@ -938,6 +946,9 @@ export default function DistributorDetails() {
                     </td>
                     <td className="px-2 py-2">
                       <Input value={row.batch || ''} onChange={e => updateEditRow(idx, 'batch', e.target.value)} placeholder="Batch" />
+                    </td>
+                    <td className="px-2 py-2">
+                      <div className="font-bold text-slate-600 dark:text-slate-400 text-sm">{formatMoney(row.mrp || 0)}</div>
                     </td>
                     <td className="px-2 py-2">
                       <Input type="number" min="0" step="0.01" value={row.price} onChange={e => updateEditRow(idx, 'price', e.target.value)} required />

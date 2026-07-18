@@ -121,7 +121,7 @@ r.patch('/sales/:id', protect, authorize(...ALL_STAFF), scopeCompany, requireFea
 r.post('/sales-invoices', protect, authorize(...ALL_STAFF), scopeCompany, validate({ body: schemas.createSalesInvoice }), salesInvoice.createSalesInvoice);
 r.get('/sales-invoices', protect, authorize(...MANAGERS), scopeCompany, salesInvoice.listSalesInvoices);
 r.get('/sales-invoices/:id', protect, authorize(...MANAGERS), scopeCompany, salesInvoice.getSalesInvoice);
-r.patch('/sales-invoices/:id', protect, authorize(...MANAGERS), scopeCompany, salesInvoice.updateSalesInvoice);
+r.patch('/sales-invoices/:id', protect, authorize(...MANAGERS), scopeCompany, validate({ body: schemas.updateSalesInvoice }), salesInvoice.updateSalesInvoice);
 r.delete('/sales-invoices/:id', protect, authorize(...OWNERS), scopeCompany, salesInvoice.deleteSalesInvoice);
 
 // ============ PURCHASES ============

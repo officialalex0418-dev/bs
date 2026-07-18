@@ -187,11 +187,28 @@ export const schemas = {
       productName: Joi.string().required(),
       batch: Joi.string().allow(''),
       price: Joi.number().min(0).required(),
+      mrp: Joi.number().min(0).allow(null),
       quantity: Joi.number().integer().min(1).required(),
     })).min(1).required(),
     discountPct: Joi.number().min(0).max(100),
     vatPct: Joi.number().min(0).max(100),
     paymentMethod: Joi.string().valid('Cash', 'Online/QR', 'Cheque', 'Credit').required(),
+  }),
+  updateSalesInvoice: Joi.object({
+    customerName: Joi.string().max(150).allow(''),
+    dueDate: Joi.date(),
+    discountPct: Joi.number().min(0).max(100),
+    vatPct: Joi.number().min(0).max(100),
+    paymentMethod: Joi.string().valid('Cash', 'Online/QR', 'Cheque', 'Credit'),
+    items: Joi.array().items(Joi.object({
+      product: objectId,
+      productName: Joi.string(),
+      batch: Joi.string().allow(''),
+      price: Joi.number().min(0),
+      mrp: Joi.number().min(0).allow(null),
+      quantity: Joi.number().integer().min(1),
+      amount: Joi.number().min(0),
+    })),
   }),
 
   // ---- Inventory ----

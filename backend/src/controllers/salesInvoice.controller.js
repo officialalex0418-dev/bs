@@ -45,6 +45,7 @@ export const createSalesInvoice = asyncHandler(async (req, res) => {
       productName: item.productName,
       batch: item.batch,
       price: Number(item.price),
+      mrp: Number(item.mrp || 0),
       quantity: Number(item.quantity),
       amount: itemAmount
     });
@@ -140,6 +141,7 @@ export const updateSalesInvoice = asyncHandler(async (req, res) => {
       productName: item.productName,
       batch: item.batch,
       price,
+      mrp: Number(item.mrp || 0),
       quantity,
       amount
     };

@@ -5,6 +5,7 @@ const salesInvoiceItemSchema = new mongoose.Schema({
   productName: { type: String, required: true },
   batch: { type: String },
   price: { type: Number, required: true, min: 0 },
+  mrp: { type: Number, min: 0 },
   quantity: { type: Number, required: true, min: 1 },
   amount: { type: Number, required: true, min: 0 }
 });

@@ -38,7 +38,7 @@ export default function InventoryPage() {
 
   // Invoice Entry State
   const [invoiceRows, setInvoiceRows] = useState([
-    { productName: '', productId: '', batch: '', price: 0, quantity: 1, amount: 0 }
+    { productName: '', productId: '', batch: '', price: 0, mrp: 0, quantity: 1, amount: 0 }
   ]);
   const [invoiceDistributorId, setInvoiceDistributorId] = useState('');
   const [invoiceDiscountPct, setInvoiceDiscountPct] = useState(0);
@@ -126,7 +126,7 @@ export default function InventoryPage() {
   };
 
   const addInvoiceRow = () => {
-    setInvoiceRows([...invoiceRows, { productName: '', productId: '', batch: '', price: 0, quantity: 1, amount: 0 }]);
+    setInvoiceRows([...invoiceRows, { productName: '', productId: '', batch: '', price: 0, mrp: 0, quantity: 1, amount: 0 }]);
   };
 
   const updateInvoiceRow = (index, field, value) => {
@@ -902,6 +902,7 @@ export default function InventoryPage() {
                   <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 text-center w-12">#</th>
                   <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200">Product</th>
                   <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-32">Batch</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-32">MRP</th>
                   <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-32">Unit Price</th>
                   <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-24">Qty</th>
                   <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 text-right">Amount</th>
@@ -921,7 +922,10 @@ export default function InventoryPage() {
                           updateInvoiceRow(idx, 'productId', e.target.value);
                           updateInvoiceRow(idx, 'productName', prod?.productName || '');
                           updateInvoiceRow(idx, 'batch', prod?.batchNumber || '');
-                          if (prod) updateInvoiceRow(idx, 'price', prod.sellingPrice);
+                          if (prod) {
+                            updateInvoiceRow(idx, 'price', prod.sellingPrice);
+                            updateInvoiceRow(idx, 'mrp', prod.mrp || 0);
+                          }
                         }}
                         options={[
                           { value: '', label: 'Select product...' },
@@ -935,6 +939,9 @@ export default function InventoryPage() {
                     </td>
                     <td className="px-2 py-3">
                       <Input value={row.batch} onChange={e => updateInvoiceRow(idx, 'batch', e.target.value)} placeholder="Batch" className="h-10" />
+                    </td>
+                    <td className="px-2 py-3">
+                      <div className="font-bold text-slate-600 dark:text-slate-400 text-sm">{formatMoney(row.mrp)}</div>
                     </td>
                     <td className="px-2 py-3">
                       <Input type="number" min="0" step="0.01" value={row.price} onChange={e => updateInvoiceRow(idx, 'price', e.target.value)} required className="h-10" />
