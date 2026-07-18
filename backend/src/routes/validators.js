@@ -177,6 +177,9 @@ export const schemas = {
     remarks: Joi.string().max(500).allow(''),
     saleDate: Joi.date(),
   }),
+
+  // ---- Sales Invoice ----
+  createSalesInvoice: Joi.object({
     distributorId: objectId.allow(null, ''),
     customerName: Joi.string().max(150).allow(''),
     items: Joi.array().items(Joi.object({
