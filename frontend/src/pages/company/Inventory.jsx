@@ -382,7 +382,7 @@ export default function InventoryPage() {
           </label>
         </div>
         <Table
-          columns={['S.N', 'Name', 'Batch', 'Price', 'Quantity', 'Expiry Date', 'Actions']}
+          columns={['S.N', 'Name', 'Batch', 'Cost Price', 'MRP', 'Quantity', 'Expiry Date', 'Actions']}
           data={data.items}
           renderRow={(p, idx) => (
             <tr key={p._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
@@ -392,6 +392,7 @@ export default function InventoryPage() {
               <td className="table-td font-semibold">{p.productName}</td>
               <td className="table-td">{p.batchNumber || '-'}</td>
               <td className="table-td">{formatMoney(p.costPrice)}</td>
+              <td className="table-td">{formatMoney(p.mrp || 0)}</td>
               <td className="table-td">
                 <Badge color={p.isLowStock ? 'red' : 'green'}>{p.quantity}</Badge>
               </td>
@@ -417,6 +418,7 @@ export default function InventoryPage() {
                       sku: p.sku,
                       batch: p.batchNumber || '',
                       price: p.costPrice,
+                      mrp: p.mrp || 0,
                       quantity: p.quantity,
                       amount: p.costPrice * p.quantity,
                       expiryDate: p.expiryDate ? p.expiryDate.slice(0, 10) : ''
@@ -438,7 +440,8 @@ export default function InventoryPage() {
                </div>
                <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
                   <p>Batch: <span className="text-slate-900 dark:text-slate-300">{p.batchNumber || '-'}</span></p>
-                  <p>Price: <span className="text-slate-900 dark:text-slate-300">{formatMoney(p.costPrice)}</span></p>
+                  <p>Cost Price: <span className="text-slate-900 dark:text-slate-300">{formatMoney(p.costPrice)}</span></p>
+                  <p>MRP: <span className="text-slate-900 dark:text-slate-300 font-bold">{formatMoney(p.mrp || 0)}</span></p>
                   <p>Expiry: <span className={cn(
                     "font-medium",
                     p.isExpired ? "text-red-600" : p.isNearExpiry ? "text-amber-600" : "text-slate-900 dark:text-slate-300"
@@ -460,6 +463,7 @@ export default function InventoryPage() {
                       sku: p.sku,
                       batch: p.batchNumber || '',
                       price: p.costPrice,
+                      mrp: p.mrp || 0,
                       quantity: p.quantity,
                       amount: p.costPrice * p.quantity,
                       expiryDate: p.expiryDate ? p.expiryDate.slice(0, 10) : ''
