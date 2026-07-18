@@ -525,7 +525,7 @@ export default function InventoryPage() {
                       <div className="font-bold text-slate-900 dark:text-white">{formatMoney(row.amount)}</div>
                     </td>
                     <td className="px-2 py-3">
-                      <DatePicker value={row.expiryDate} onChange={val => updateProductRow(idx, 'expiryDate', val)} required className="h-10 text-sm" position="top-right" />
+                      <DatePicker value={row.expiryDate} onChange={val => updateProductRow(idx, 'expiryDate', val)} required className="h-10 text-sm" position="bottom-right" />
                     </td>
                     <td className="px-2 py-3">
                       <button type="button" onClick={() => removeProductRow(idx)} className="text-slate-300 hover:text-red-500 transition-colors">
@@ -773,7 +773,7 @@ export default function InventoryPage() {
                       <div className="font-bold text-slate-900 dark:text-white">{formatMoney(row.amount)}</div>
                     </td>
                     <td className="px-2 py-3">
-                      <DatePicker value={row.expiryDate} onChange={val => updatePurchaseRow(idx, 'expiryDate', val)} required className="h-10" position="top-right" />
+                      <DatePicker value={row.expiryDate} onChange={val => updatePurchaseRow(idx, 'expiryDate', val)} required className="h-10" position="bottom-right" />
                     </td>
                     <td className="px-2 py-3">
                       <button type="button" onClick={() => removePurchaseRow(idx)} className="text-slate-300 hover:text-red-500 transition-colors">

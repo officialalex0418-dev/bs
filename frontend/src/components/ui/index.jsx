@@ -112,8 +112,8 @@ export const DatePicker = ({ label, value, onChange, className, position = 'bott
         if (inputRef.current) {
             const rect = inputRef.current.getBoundingClientRect();
             setCoords({
-                top: rect.top + window.scrollY,
-                left: rect.left + window.scrollX,
+                top: rect.top,
+                left: rect.left,
                 height: rect.height,
                 width: rect.width
             });
