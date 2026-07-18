@@ -114,67 +114,82 @@ export const bulkUpload = asyncHandler(async (req, res) => {
   const { products } = req.body;
   if (!Array.isArray(products)) throw ApiError.badRequest('Invalid products array');
 
-  const results = { created: 0, errors: [], duplicates: 0 };
-  const toInsert = [];
+  const results = { created: 0, updated: 0, errors: [], duplicates: 0 };
 
-  for (const p of products) {
-    // Normalization logic for different field names (supporting image format)
+  for (const raw of products) {
+    // 1. Robust Header Mapping (Case-insensitive, trim spaces)
+    const p = {};
+    Object.keys(raw).forEach(key => {
+        const cleanKey = key.trim().toLowerCase();
+        p[cleanKey] = raw[key];
+    });
+
     const normalized = {
-        productName: p.productName || p['Product Name'],
-        batchNumber: p.batchNumber || p.batch || p['Batch'],
-        quantity: p.quantity || p.qty || p['QTY'] || 0,
-        costPrice: p.costPrice || p['Cost Price'],
-        mrp: p.mrp || p['MPR'],
-        sellingPrice: p.sellingPrice || p.mrp || p['MPR'], // Use MRP as selling price by default
-        sku: p.sku || `AUTO-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-        expiryDate: p.expiryDate || p.expirey || p['Expirey']
+        productName: p['product name'] || p['productname'] || p.name,
+        batchNumber: String(p['batch'] || p['batchnumber'] || '').trim(),
+        quantity: Number(p['qty'] || p['quantity'] || 0),
+        costPrice: Number(p['cost price'] || p['costprice'] || 0),
+        mrp: Number(p['mpr'] || p['mrp'] || 0),
+        expiryDate: p['expiry'] || p['expirey'] || p['expiry date'] || p['expirydate']
     };
 
-    if (!normalized.productName || normalized.costPrice === undefined || normalized.mrp === undefined) {
-      results.errors.push({ productName: normalized.productName, error: 'Missing required fields (Name, Cost, MRP)' });
+    if (!normalized.productName) {
+      results.errors.push({ row: raw, error: 'Product Name is missing' });
       continue;
     }
 
-    // Try to parse expiry date if it's a string like "Jun-26"
+    // 2. Date Parsing (MMM-YY support)
     if (typeof normalized.expiryDate === 'string' && normalized.expiryDate.includes('-')) {
         const parts = normalized.expiryDate.split('-');
         if (parts.length === 2) {
-            // Assume format MMM-YY (e.g., Jun-26)
             const monthMap = { 'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5, 'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11 };
             const mStr = parts[0].toLowerCase().substr(0, 3);
             const yStr = parts[1];
             if (monthMap[mStr] !== undefined) {
                 const year = 2000 + parseInt(yStr);
-                normalized.expiryDate = new Date(year, monthMap[mStr], 28); // Set to end of month roughly
+                normalized.expiryDate = new Date(year, monthMap[mStr], 28);
             }
         }
     }
 
-    // Check duplication by Name + Batch instead of SKU for bulk uploads from sheets
-    const exists = await Inventory.findOne({
+    // 3. Upsert Logic: Match by Name + Batch
+    const existing = await Inventory.findOne({
         company: req.companyId,
         productName: normalized.productName.trim(),
-        batchNumber: (normalized.batchNumber || '').trim(),
+        batchNumber: normalized.batchNumber,
         isActive: true
-    });
+    }).select('+movements');
 
-    if (exists) {
-      results.duplicates++;
-      continue;
+    if (existing) {
+      // Update existing
+      existing.quantity = normalized.quantity;
+      existing.costPrice = normalized.costPrice || existing.costPrice;
+      existing.mrp = normalized.mrp || existing.mrp;
+      existing.sellingPrice = normalized.mrp || existing.sellingPrice;
+      if (normalized.expiryDate) existing.expiryDate = normalized.expiryDate;
+
+      existing.movements.push({
+        type: 'ADJUST',
+        quantity: normalized.quantity,
+        note: 'Bulk Upload Sync (Overwrite)',
+        by: req.user._id
+      });
+
+      await existing.save();
+      results.updated++;
+    } else {
+      // Create new
+      await Inventory.create({
+        ...normalized,
+        company: req.companyId,
+        sku: `AUTO-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+        sellingPrice: normalized.mrp || normalized.costPrice * 1.2,
+        isActive: true
+      });
+      results.created++;
     }
-
-    toInsert.push({
-      ...normalized,
-      company: req.companyId,
-      sku: normalized.sku.toUpperCase(),
-    });
   }
 
-  if (toInsert.length > 0) {
-    await Inventory.insertMany(toInsert);
-    results.created = toInsert.length;
-  }
-
-  audit({ req, action: 'BULK_UPLOAD_INVENTORY', entity: 'Inventory', meta: { count: results.created } });
+  audit({ req, action: 'BULK_UPLOAD_INVENTORY', entity: 'Inventory', meta: { created: results.created, updated: results.updated } });
   res.json({ success: true, data: results });
 });

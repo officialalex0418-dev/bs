@@ -553,12 +553,36 @@ export default function InventoryPage() {
       <Modal open={modal === 'bulk'} onClose={() => {setModal(null); setBulkResults(null); setBulkData([]);}} title="Bulk Product Upload">
         {bulkResults ? (
           <div className="space-y-4">
-            <div className="rounded-xl bg-emerald-50 p-4 text-emerald-700 dark:bg-emerald-900/20">
-              <p className="font-bold">Upload Complete!</p>
-              <p className="text-sm">{bulkResults.created} products created successfully.</p>
-              {bulkResults.duplicates > 0 && <p className="text-sm">{bulkResults.duplicates} duplicates skipped.</p>}
+            <div className="rounded-xl bg-emerald-50 p-6 text-emerald-700 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800">
+              <p className="font-bold text-lg mb-2">Upload Processed!</p>
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border">
+                      <p className="text-xs text-slate-400 uppercase font-bold">Created</p>
+                      <p className="text-2xl font-black text-emerald-600">{bulkResults.created}</p>
+                      <p className="text-[10px] text-slate-500">New listings added</p>
+                  </div>
+                  <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border">
+                      <p className="text-xs text-slate-400 uppercase font-bold">Updated</p>
+                      <p className="text-2xl font-black text-blue-600">{bulkResults.updated}</p>
+                      <p className="text-[10px] text-slate-500">Stock/Price synced</p>
+                  </div>
+              </div>
+
+              {bulkResults.errors?.length > 0 && (
+                  <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-100 dark:border-red-800">
+                      <p className="text-xs font-bold text-red-600 uppercase flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" /> {bulkResults.errors.length} Rows Failed
+                      </p>
+                      <ul className="mt-1 text-[10px] text-red-500 list-disc list-inside max-h-24 overflow-y-auto">
+                          {bulkResults.errors.slice(0, 5).map((e, i) => (
+                              <li key={i}>{e.productName || 'Row '+i}: {e.error}</li>
+                          ))}
+                          {bulkResults.errors.length > 5 && <li>...and {bulkResults.errors.length - 5} more</li>}
+                      </ul>
+                  </div>
+              )}
             </div>
-            <Button onClick={() => setModal(null)} className="w-full">Close</Button>
+            <Button onClick={() => setModal(null)} className="w-full h-12 text-lg">Close & Refresh List</Button>
           </div>
         ) : (
           <div className="space-y-6">
