@@ -168,8 +168,15 @@ export const schemas = {
     ),
   }).or('productId', 'items'),
 
-  // ---- Sales Invoice ----
-  createSalesInvoice: Joi.object({
+  updateSale: Joi.object({
+    productId: objectId.allow(null, ''),
+    productName: Joi.string().max(200).allow(''),
+    quantity: Joi.number().integer().min(1),
+    amount: Joi.number().min(0),
+    customerName: Joi.string().max(150).allow(''),
+    remarks: Joi.string().max(500).allow(''),
+    saleDate: Joi.date(),
+  }),
     distributorId: objectId.allow(null, ''),
     customerName: Joi.string().max(150).allow(''),
     items: Joi.array().items(Joi.object({

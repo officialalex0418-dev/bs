@@ -250,3 +250,102 @@ export const getSalesMetadata = asyncHandler(async (req, res) => {
     },
   });
 });
+
+/** PATCH /sales/:id - Update a sale */
+export const updateSale = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const companyId = req.companyId;
+  const { productId, quantity, amount, customerName, remarks, saleDate } = req.body;
+
+  const sale = await Sale.findOne({ _id: id, company: companyId });
+  if (!sale) throw ApiError.notFound('Sale not found');
+
+  // Authorization: Only the staff who created it or a manager can edit
+  const isManager = ['COMPANY_OWNER', 'COMPANY_MANAGER', 'SUPER_ADMIN'].includes(req.user.role);
+  if (sale.staff.toString() !== req.user._id.toString() && !isManager) {
+    throw ApiError.forbidden('You can only edit your own sales');
+  }
+
+  // Inventory handling if quantity or product changed
+  const comp = await mongoose.model('Company').findById(companyId).select('settings');
+  const inventorySync = comp?.settings?.inventorySync || false;
+
+  if (inventorySync) {
+    // 1. Revert old stock if it was linked to a product
+    if (sale.product) {
+        await Inventory.findByIdAndUpdate(sale.product, {
+            $inc: { quantity: sale.quantity },
+            $push: { movements: { type: 'IN', quantity: sale.quantity, note: 'Sale Edit (Revert)', by: req.user._id } }
+        });
+    }
+
+    // 2. Deduct new stock if a new product is linked
+    const targetProductId = productId || sale.product;
+    if (targetProductId) {
+        const newProduct = await Inventory.findOne({ _id: targetProductId, company: companyId });
+        if (newProduct) {
+            const qty = Number(quantity || sale.quantity);
+            if (newProduct.quantity < qty) throw ApiError.badRequest(`Insufficient stock for ${newProduct.productName}`);
+
+            newProduct.quantity -= qty;
+            newProduct.movements.push({ type: 'OUT', quantity: qty, note: 'Sale Edit (New)', by: req.user._id });
+            await newProduct.save();
+
+            sale.product = newProduct._id;
+            sale.productName = newProduct.productName;
+        }
+    }
+  } else if (productId) {
+      const p = await Inventory.findOne({ _id: productId, company: companyId });
+      if (p) {
+          sale.product = p._id;
+          sale.productName = p.productName;
+      }
+  }
+
+  if (quantity) sale.quantity = Number(quantity);
+  if (amount) sale.amount = Number(amount);
+  if (remarks !== undefined) sale.remarks = remarks;
+  if (saleDate) sale.saleDate = saleDate;
+
+  // Handle customer name change
+  if (customerName && customerName !== sale.customerName) {
+      let existingCust = await Customer.findOne({ company: companyId, name: { $regex: `^${customerName.trim()}$`, $options: 'i' } });
+      if (!existingCust) {
+        existingCust = await Customer.create({ company: companyId, name: customerName.trim(), createdBy: req.user._id });
+      }
+      sale.customer = existingCust._id;
+      sale.customerName = existingCust.name;
+  }
+
+  await sale.save();
+  audit({ req, action: 'UPDATE_SALE', entity: 'Sale', entityId: sale._id });
+  res.json({ success: true, data: sale });
+});
+
+/** DELETE /sales/:id - Remove a sale */
+export const deleteSale = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const companyId = req.companyId;
+
+    const sale = await Sale.findOne({ _id: id, company: companyId });
+    if (!sale) throw ApiError.notFound('Sale not found');
+
+    const isManager = ['COMPANY_OWNER', 'COMPANY_MANAGER', 'SUPER_ADMIN'].includes(req.user.role);
+    if (sale.staff.toString() !== req.user._id.toString() && !isManager) {
+        throw ApiError.forbidden('You can only delete your own sales');
+    }
+
+    // Revert inventory if sync is on
+    const comp = await mongoose.model('Company').findById(companyId).select('settings');
+    if (comp?.settings?.inventorySync && sale.product) {
+        await Inventory.findByIdAndUpdate(sale.product, {
+            $inc: { quantity: sale.quantity },
+            $push: { movements: { type: 'IN', quantity: sale.quantity, note: 'Sale Deleted (Revert)', by: req.user._id } }
+        });
+    }
+
+    await sale.deleteOne();
+    audit({ req, action: 'DELETE_SALE', entity: 'Sale', entityId: id });
+    res.json({ success: true, message: 'Sale deleted successfully' });
+});

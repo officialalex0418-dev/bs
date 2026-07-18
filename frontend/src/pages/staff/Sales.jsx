@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Plus, TrendingUp, UserPlus, Trash2 } from 'lucide-react';
+import { Plus, TrendingUp, UserPlus, Trash2, Edit2 } from 'lucide-react';
 import { api } from '@/api/client';
 import { Card, CardHeader, Button, Input, Textarea, Modal, Table, Spinner, EmptyState, Select } from '@/components/ui';
 import { formatMoney, formatDate } from '@/lib/utils';
@@ -19,10 +19,12 @@ export default function StaffSales() {
   const [items, setItems] = useState([{ ...emptyRow }]);
   const [customerName, setCustomerName] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [editingId, setEditingId] = useState(null);
 
   const [custForm, setCustForm] = useState({ name: '', address: '', contactNumber: '', panVat: '', ownerName: '' });
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [featureBlocked, setFeatureBlocked] = useState(false);
 
   const loadMetadata = useCallback(async () => {
@@ -46,10 +48,10 @@ export default function StaffSales() {
         if (err.response?.data?.message?.toLowerCase().includes('package')) {
           setFeatureBlocked(true);
         } else {
-          setError(err.response?.data?.message || 'Access denied');
+          setLoadError(err.response?.data?.message || 'Access denied');
         }
       } else {
-        setError('Failed to load sales data');
+        setLoadError('Failed to load sales data');
       }
     }
   }, [loadMetadata]);
@@ -82,32 +84,73 @@ export default function StaffSales() {
     setItems(next);
   };
 
+  const startEdit = (sale) => {
+    setEditingId(sale._id);
+    setItems([{
+        productId: sale.product || '',
+        productName: sale.productName,
+        quantity: sale.quantity,
+        sellingPrice: sale.amount / sale.quantity,
+        amount: sale.amount
+    }]);
+    setCustomerName(sale.customerName || '');
+    setRemarks(sale.remarks || '');
+    setModal(true);
+  };
+
+  const resetForm = () => {
+    setEditingId(null);
+    setItems([{ ...emptyRow }]);
+    setCustomerName('');
+    setRemarks('');
+    setSubmitError('');
+  };
+
   const totalAmount = useMemo(() => items.reduce((sum, item) => sum + item.amount, 0), [items]);
 
   const submit = async (e) => {
     e.preventDefault();
-    if (items.some(i => !i.productId)) {
-        setError('Please select a product for all rows');
+    if (items.some(i => !i.productId && !i.productName)) {
+        setSubmitError('Please select a product for all rows');
         return;
     }
-    setSaving(true); setError('');
+    setSaving(true); setSubmitError('');
     try {
-      await api.post('/sales', {
-        items,
-        customerName,
-        remarks,
-      });
+      if (editingId) {
+          const item = items[0];
+          await api.patch(`/sales/${editingId}`, {
+              productId: item.productId,
+              quantity: item.quantity,
+              amount: item.amount,
+              customerName,
+              remarks,
+          });
+      } else {
+          await api.post('/sales', {
+            items,
+            customerName,
+            remarks,
+          });
+      }
       setModal(false);
-      setItems([{ ...emptyRow }]);
-      setCustomerName('');
-      setRemarks('');
+      resetForm();
       load();
     } catch (err) {
       if (err.response?.status === 403 && err.response?.data?.message?.toLowerCase().includes('package')) {
         setFeatureBlocked(true);
       }
-      setError(err.response?.data?.message || 'Submission failed');
+      setSubmitError(err.response?.data?.message || 'Submission failed');
     } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this sales record?')) return;
+    try {
+        await api.delete(`/sales/${id}`);
+        load();
+    } catch (err) {
+        alert(err.response?.data?.message || 'Failed to delete sale');
+    }
   };
 
   const submitQuickCustomer = async (e) => {
@@ -129,11 +172,11 @@ export default function StaffSales() {
       subtitle="Ask your company owner to upgrade the package." /></Card>;
   }
 
-  if (error) {
+  if (loadError) {
     return (
       <Card className="p-8 text-center space-y-4">
-        <p className="text-red-600 font-medium">{error}</p>
-        <Button onClick={() => { setError(''); load(); }} variant="outline">Try Again</Button>
+        <p className="text-red-600 font-medium">{loadError}</p>
+        <Button onClick={() => { setLoadError(''); load(); }} variant="outline">Try Again</Button>
       </Card>
     );
   }
@@ -144,7 +187,7 @@ export default function StaffSales() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Sales Entry</h1>
-        <Button onClick={() => setModal(true)}><Plus className="h-4 w-4" /> New Sale</Button>
+        <Button onClick={() => { resetForm(); setModal(true); }}><Plus className="h-4 w-4" /> New Sale</Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -165,7 +208,7 @@ export default function StaffSales() {
       <Card>
         <CardHeader title="My Sales — Last 30 days" subtitle={`${summary.salesCount} entries this month`} />
         <Table
-          columns={['Date', 'Product', 'Qty', 'Amount', 'Customer']}
+          columns={['Date', 'Product', 'Qty', 'Amount', 'Customer', 'Actions']}
           data={sales.items}
           renderRow={(s) => (
             <tr key={s._id}>
@@ -174,6 +217,16 @@ export default function StaffSales() {
               <td className="table-td">{s.quantity}</td>
               <td className="table-td font-semibold">{formatMoney(s.amount)}</td>
               <td className="table-td">{s.customerName || '—'}</td>
+              <td className="table-td">
+                <div className="flex gap-2">
+                    <button onClick={() => startEdit(s)} className="p-1.5 text-slate-400 hover:text-primary-600 transition-colors rounded-lg hover:bg-primary-50">
+                        <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => handleDelete(s._id)} className="p-1.5 text-slate-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50">
+                        <Trash2 className="h-4 w-4" />
+                    </button>
+                </div>
+              </td>
             </tr>
           )}
           mobileRender={(s) => (
@@ -183,16 +236,26 @@ export default function StaffSales() {
                 <p className="font-bold text-primary-600">{formatMoney(s.amount)}</p>
               </div>
               <div className="flex items-center justify-between text-xs text-slate-500">
-                <p>{formatDate(s.saleDate, dateFormat)} · Qty: {s.quantity}</p>
-                <p className="truncate max-w-[150px]">{s.customerName ? `Cust: ${s.customerName}` : ''}</p>
+                <div className="space-y-1">
+                    <p>{formatDate(s.saleDate, dateFormat)} · Qty: {s.quantity}</p>
+                    <p className="truncate max-w-[150px]">{s.customerName ? `Cust: ${s.customerName}` : ''}</p>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={() => startEdit(s)} className="p-2 text-primary-600 bg-primary-50 rounded-lg">
+                        <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => handleDelete(s._id)} className="p-2 text-red-600 bg-red-50 rounded-lg">
+                        <Trash2 className="h-4 w-4" />
+                    </button>
+                </div>
               </div>
             </div>
           )}
         />
       </Card>
 
-      <Modal open={modal} onClose={() => setModal(false)} title="Submit Sales Entry" wide>
-        {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
+      <Modal open={modal} onClose={() => { setModal(false); resetForm(); }} title={editingId ? "Edit Sales Entry" : "Submit Sales Entry"} wide>
+        {submitError && <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600 border border-red-100">{submitError}</div>}
         <form onSubmit={submit} className="space-y-6">
 
           <div className="overflow-x-auto border rounded-xl dark:border-slate-800">
@@ -231,9 +294,11 @@ export default function StaffSales() {
                                 {formatMoney(row.amount)}
                             </td>
                             <td className="px-2 py-2">
-                                <button type="button" onClick={() => removeRow(idx)} className="text-slate-300 hover:text-red-500 transition-colors">
-                                    <Trash2 className="h-4 w-4" />
-                                </button>
+                                {!editingId && (
+                                    <button type="button" onClick={() => removeRow(idx)} className="text-slate-300 hover:text-red-500 transition-colors">
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                )}
                             </td>
                         </tr>
                     ))}
@@ -241,9 +306,11 @@ export default function StaffSales() {
             </table>
           </div>
 
-          <Button type="button" variant="outline" size="sm" onClick={addRow}>
-            <Plus className="h-4 w-4 mr-1" /> Add Product Row
-          </Button>
+          {!editingId && (
+            <Button type="button" variant="outline" size="sm" onClick={addRow}>
+                <Plus className="h-4 w-4 mr-1" /> Add Product Row
+            </Button>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start pt-4 border-t dark:border-slate-800">
              <div className="space-y-4">
@@ -275,11 +342,13 @@ export default function StaffSales() {
                     <span className="text-3xl font-black text-primary-600 leading-none">{formatMoney(totalAmount)}</span>
                 </div>
                 <p className="text-[10px] text-slate-400 italic text-right border-t pt-2 border-slate-200 dark:border-slate-800">
-                    Calculated for {items.length} items
+                    {editingId ? 'Updating single record' : `Calculated for ${items.length} items`}
                 </p>
                 <div className="flex justify-end gap-3 pt-2">
-                    <Button type="button" variant="outline" onClick={() => setModal(false)} className="px-6">Cancel</Button>
-                    <Button type="submit" loading={saving} className="px-8">Submit Sale</Button>
+                    <Button type="button" variant="outline" onClick={() => { setModal(false); resetForm(); }} className="px-6">Cancel</Button>
+                    <Button type="submit" loading={saving} className="px-8">
+                        {editingId ? 'Update Entry' : 'Submit Sale'}
+                    </Button>
                 </div>
              </div>
           </div>
