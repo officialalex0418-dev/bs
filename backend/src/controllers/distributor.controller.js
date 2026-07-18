@@ -227,10 +227,27 @@ export const createInvoice = asyncHandler(async (req, res) => {
 
 /** POST /payments - Does not affect invoice objects directly */
 export const recordPayment = asyncHandler(async (req, res) => {
-  const { distributorId, amount, method, remarks } = req.body;
+  const { distributorId, amount, method, remarks, paymentDate } = req.body;
 
   const distributor = await Distributor.findOne({ _id: distributorId, company: req.companyId });
   if (!distributor) throw ApiError.notFound('Distributor not found');
+
+  let finalDate = new Date();
+  if (paymentDate) {
+    const pDate = new Date(paymentDate);
+    if (!isNaN(pDate.getTime())) {
+        const now = new Date();
+        if (pDate.toDateString() === now.toDateString()) {
+          finalDate = now;
+        } else {
+          if (typeof paymentDate === 'string' && paymentDate.length <= 10) {
+            finalDate = new Date(paymentDate + 'T12:00:00');
+          } else {
+            finalDate = pDate;
+          }
+        }
+    }
+  }
 
   const payment = await Payment.create({
     company: req.companyId,
@@ -238,7 +255,7 @@ export const recordPayment = asyncHandler(async (req, res) => {
     amount: Number(amount),
     method,
     remarks,
-    paymentDate: new Date(),
+    paymentDate: finalDate,
     createdBy: req.user._id
   });
 

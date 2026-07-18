@@ -20,7 +20,7 @@ export default function DistributorDetails() {
   const [distCheques, setDistCheques] = useState([]);
   const [editingCheque, setEditingCheque] = useState(null);
   const [chequeForm, setChequeForm] = useState({ chequeNumber: '', bankName: '', issueDate: '', cashDate: '', amount: 0, remarks: '', status: 'ISSUED' });
-  const [payForm, setPayForm] = useState({ amount: 0, method: 'Cash', remarks: '' });
+  const [payForm, setPayForm] = useState({ amount: 0, method: 'Cash', remarks: '', paymentDate: '' });
   const [newInvForm, setNewInvForm] = useState({
     items: [{ productName: '', productId: '', price: 0, mrp: 0, quantity: 1, amount: 0 }],
     discountPct: 0,
@@ -752,6 +752,11 @@ export default function DistributorDetails() {
             ]}
             value={payForm.method}
             onChange={e => setPayForm({...payForm, method: e.target.value})}
+          />
+          <DatePicker
+            label="Payment Date"
+            value={payForm.paymentDate}
+            onChange={val => setPayForm({...payForm, paymentDate: val})}
           />
           <Textarea label="Remarks" value={payForm.remarks} onChange={e => setPayForm({...payForm, remarks: e.target.value})} />
           <div className="flex justify-end gap-2 pt-4 border-t">

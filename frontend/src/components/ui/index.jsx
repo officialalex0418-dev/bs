@@ -98,6 +98,7 @@ export const DatePicker = ({ label, value, onChange, className, position = 'bott
   const format = user?.company?.settings?.dateFormat || 'BS';
   const [show, setShow] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const [typedValue, setTypedValue] = useState(''); // Buffer for manual typing
   const containerRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -124,19 +125,26 @@ export const DatePicker = ({ label, value, onChange, className, position = 'bott
 
   const handleChange = (e) => {
     const val = e.target.value;
+    setTypedValue(val);
+
     if (format === 'BS') {
-      try {
-        const ad = bsToAd(val);
-        onChange(toLocalDateString(ad));
-      } catch (e) {
-        onChange(val);
+      // Only attempt conversion if it looks like a full date (YYYY-MM-DD)
+      if (val.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+        try {
+          const ad = bsToAd(val);
+          if (!isNaN(ad.getTime())) {
+            onChange(toLocalDateString(ad));
+          }
+        } catch (e) {}
       }
     } else {
       onChange(val);
     }
   };
 
-  const displayValue = format === 'BS' ? (adToBs(value)?.formatted || '') : (value || '');
+  const displayValue = show && typedValue !== ''
+    ? typedValue
+    : (format === 'BS' ? (adToBs(value)?.formatted || '') : (value || ''));
 
   return (
     <div className="relative" ref={containerRef}>
@@ -150,6 +158,12 @@ export const DatePicker = ({ label, value, onChange, className, position = 'bott
             className={cn('input pr-10', className)}
             value={displayValue}
             onChange={handleChange}
+            onFocus={() => {
+                setShow(true);
+                if (format === 'BS') {
+                    setTypedValue(adToBs(value)?.formatted || '');
+                }
+            }}
             {...props}
           />
           <button
@@ -176,7 +190,11 @@ export const DatePicker = ({ label, value, onChange, className, position = 'bott
                 : `${coords.left}px`
           }}
         >
-          <BSCalendarInternal value={value} onSelect={(val) => { onChange(val); setShow(false); }} />
+          <BSCalendarInternal value={value} onSelect={(val) => {
+              onChange(val);
+              setShow(false);
+              setTypedValue('');
+          }} />
         </div>
       )}
     </div>

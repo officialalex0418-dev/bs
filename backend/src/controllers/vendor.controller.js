@@ -103,13 +103,20 @@ export const recordVendorPayment = asyncHandler(async (req, res) => {
   let finalDate = new Date();
   if (paymentDate) {
     const pDate = new Date(paymentDate);
-    const now = new Date();
-    // If the selected date is today (local time), use the current precise time
-    if (pDate.toDateString() === now.toDateString()) {
-      finalDate = now;
-    } else {
-      // Otherwise use the provided date at noon to avoid TZ day-shifts
-      finalDate = new Date(paymentDate + 'T12:00:00');
+    if (!isNaN(pDate.getTime())) {
+        const now = new Date();
+        // If the selected date is today (local time), use the current precise time
+        if (pDate.toDateString() === now.toDateString()) {
+          finalDate = now;
+        } else {
+          // If it's a string like "YYYY-MM-DD", set to noon to avoid timezone shifts
+          // If it's already a full date/ISO string, just use it
+          if (typeof paymentDate === 'string' && paymentDate.length <= 10) {
+            finalDate = new Date(paymentDate + 'T12:00:00');
+          } else {
+            finalDate = pDate;
+          }
+        }
     }
   }
 

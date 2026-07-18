@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, Save, ArrowLeft, Building2, Globe, Calendar, MapPin } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, useMapEvents, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, Circle, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useAuth } from '@/context/AuthContext';
@@ -23,7 +23,17 @@ function LocationPicker({ position, setPosition }) {
       setPosition([e.latlng.lat, e.latlng.lng]);
     },
   });
-  return position ? <Marker position={position} /> : null;
+  return position && typeof position[0] === 'number' ? <Marker position={position} /> : null;
+}
+
+function MapUpdater({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center && typeof center[0] === 'number') {
+      map.setView(center);
+    }
+  }, [center, map]);
+  return null;
 }
 
 export default function CompanyEditProfile() {
@@ -72,9 +82,11 @@ export default function CompanyEditProfile() {
           language: c.settings?.language || 'English',
         },
       });
-      if (c.location?.coordinates) {
+      if (c.location?.coordinates && c.location.coordinates.length === 2) {
         setMarkerPos([c.location.coordinates[1], c.location.coordinates[0]]);
       }
+    }).catch(err => {
+        console.error("Failed to fetch company info", err);
     });
   }, []);
 
@@ -185,8 +197,8 @@ export default function CompanyEditProfile() {
                       <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Target Coordinates</p>
                          <div className="flex justify-between text-sm font-mono">
-                            <span>Lat: {markerPos[0].toFixed(6)}</span>
-                            <span>Lng: {markerPos[1].toFixed(6)}</span>
+                            <span>Lat: {(markerPos[0] || 0).toFixed(6)}</span>
+                            <span>Lng: {(markerPos[1] || 0).toFixed(6)}</span>
                          </div>
                       </div>
                    </div>
@@ -194,6 +206,7 @@ export default function CompanyEditProfile() {
                       <MapContainer center={markerPos} zoom={15} style={{ height: '100%', width: '100%' }}>
                         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                         <LocationPicker position={markerPos} setPosition={setMarkerPos} />
+                        <MapUpdater center={markerPos} />
                         <Circle center={markerPos} radius={Number(form.checkInRadiusMeters || 0)} pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.1 }} />
                       </MapContainer>
                    </div>
