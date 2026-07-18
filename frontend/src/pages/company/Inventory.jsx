@@ -761,40 +761,52 @@ export default function InventoryPage() {
             </table>
           </div>
 
-          <Button type="button" variant="outline" size="sm" onClick={addPurchaseRow}>
-            <Plus className="h-4 w-4 mr-1" /> Add Product
-          </Button>
+          <div className="flex flex-col md:flex-row justify-between items-start gap-6 border-t pt-6">
+            <Button type="button" variant="outline" size="sm" onClick={addPurchaseRow}>
+              <Plus className="h-4 w-4 mr-1" /> Add Product
+            </Button>
 
-          <div className="flex flex-col items-end gap-2 border-t pt-4">
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2 w-full max-w-xs text-sm">
-              <span className="text-slate-500">Total Amount:</span>
-              <span className="font-bold text-right">{formatMoney(calculatePurchaseTotals().totalAmount)}</span>
+            <div className="w-full md:w-80 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500 font-medium">Total Amount:</span>
+                <span className="font-bold">{formatMoney(calculatePurchaseTotals().totalAmount)}</span>
+              </div>
 
-              <span className="text-slate-500 flex items-center">Discount %:</span>
-              <Input type="number" min="0" max="100" className="h-8 text-right" value={purchaseDiscountPct} onChange={e => setPurchaseDiscountPct(Number(e.target.value))} />
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-slate-500 font-medium shrink-0">Discount %:</span>
+                <Input type="number" min="0" max="100" className="h-9 w-24 text-right" value={purchaseDiscountPct} onChange={e => setPurchaseDiscountPct(Number(e.target.value))} />
+              </div>
 
-              <span className="text-slate-500">Discount:</span>
-              <span className="font-semibold text-right text-red-500">-{formatMoney(calculatePurchaseTotals().discount)}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500 font-medium">Discount:</span>
+                <span className="font-semibold text-red-500">-{formatMoney(calculatePurchaseTotals().discount)}</span>
+              </div>
 
-              <span className="text-slate-500">Taxable Amount:</span>
-              <span className="font-bold text-right">{formatMoney(calculatePurchaseTotals().taxableAmount)}</span>
+              <div className="flex justify-between text-sm border-t border-dashed pt-2">
+                <span className="text-slate-500 font-medium">Taxable Amount:</span>
+                <span className="font-bold">{formatMoney(calculatePurchaseTotals().taxableAmount)}</span>
+              </div>
 
-              <span className="text-slate-500 flex items-center">VAT %:</span>
-              <Input type="number" min="0" max="100" className="h-8 text-right" value={purchaseVatPct} onChange={e => setPurchaseVatPct(Number(e.target.value))} />
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-slate-500 font-medium shrink-0">VAT %:</span>
+                <Input type="number" min="0" max="100" className="h-9 w-24 text-right" value={purchaseVatPct} onChange={e => setPurchaseVatPct(Number(e.target.value))} />
+              </div>
 
-              <span className="text-slate-500">VAT:</span>
-              <span className="font-semibold text-right">+{formatMoney(calculatePurchaseTotals().vat)}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500 font-medium">VAT:</span>
+                <span className="font-semibold text-emerald-600">+{formatMoney(calculatePurchaseTotals().vat)}</span>
+              </div>
 
-              <div className="col-span-2 border-t mt-2 pt-2 grid grid-cols-2">
-                <span className="text-base font-bold">Net Total:</span>
-                <span className="text-base font-bold text-right text-primary-600">{formatMoney(calculatePurchaseTotals().netTotal)}</span>
+              <div className="flex justify-between border-t mt-3 pt-3">
+                <span className="text-lg font-bold">Net Total:</span>
+                <span className="text-lg font-extrabold text-primary-600">{formatMoney(calculatePurchaseTotals().netTotal)}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 border-t pt-4">
-            <Button type="button" variant="outline" onClick={() => setModal(null)}>Cancel</Button>
-            <Button type="submit" loading={saving}>Submit Purchase</Button>
+          <div className="flex justify-end gap-3 border-t pt-6">
+            <Button type="button" variant="outline" onClick={() => setModal(null)} className="px-6">Cancel</Button>
+            <Button type="submit" loading={saving} className="px-8">Submit Purchase</Button>
           </div>
         </form>
       </Modal>
@@ -914,40 +926,52 @@ export default function InventoryPage() {
             </table>
           </div>
 
-          <Button type="button" variant="outline" size="sm" onClick={addInvoiceRow}>
-            <Plus className="h-4 w-4 mr-1" /> Add Product
-          </Button>
+          <div className="flex flex-col md:flex-row justify-between items-start gap-6 border-t pt-6">
+            <Button type="button" variant="outline" size="sm" onClick={addInvoiceRow}>
+              <Plus className="h-4 w-4 mr-1" /> Add Product
+            </Button>
 
-          <div className="flex flex-col items-end gap-2 border-t pt-4">
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2 w-full max-w-xs text-sm">
-              <span className="text-slate-500">Total Amount:</span>
-              <span className="font-bold text-right">{formatMoney(calculateInvoiceTotals().totalAmount)}</span>
+            <div className="w-full md:w-80 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500 font-medium">Total Amount:</span>
+                <span className="font-bold">{formatMoney(calculateInvoiceTotals().totalAmount)}</span>
+              </div>
 
-              <span className="text-slate-500 flex items-center">Discount %:</span>
-              <Input type="number" min="0" max="100" className="h-8 text-right" value={invoiceDiscountPct} onChange={e => setInvoiceDiscountPct(Number(e.target.value))} />
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-slate-500 font-medium shrink-0">Discount %:</span>
+                <Input type="number" min="0" max="100" className="h-9 w-24 text-right" value={invoiceDiscountPct} onChange={e => setInvoiceDiscountPct(Number(e.target.value))} />
+              </div>
 
-              <span className="text-slate-500">Discount:</span>
-              <span className="font-semibold text-right text-red-500">-{formatMoney(calculateInvoiceTotals().discount)}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500 font-medium">Discount:</span>
+                <span className="font-semibold text-red-500">-{formatMoney(calculateInvoiceTotals().discount)}</span>
+              </div>
 
-              <span className="text-slate-500">Taxable Amount:</span>
-              <span className="font-bold text-right">{formatMoney(calculateInvoiceTotals().taxableAmount)}</span>
+              <div className="flex justify-between text-sm border-t border-dashed pt-2">
+                <span className="text-slate-500 font-medium">Taxable Amount:</span>
+                <span className="font-bold">{formatMoney(calculateInvoiceTotals().taxableAmount)}</span>
+              </div>
 
-              <span className="text-slate-500 flex items-center">VAT %:</span>
-              <Input type="number" min="0" max="100" className="h-8 text-right" value={invoiceVatPct} onChange={e => setInvoiceVatPct(Number(e.target.value))} />
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-slate-500 font-medium shrink-0">VAT %:</span>
+                <Input type="number" min="0" max="100" className="h-9 w-24 text-right" value={invoiceVatPct} onChange={e => setInvoiceVatPct(Number(e.target.value))} />
+              </div>
 
-              <span className="text-slate-500">VAT:</span>
-              <span className="font-semibold text-right">+{formatMoney(calculateInvoiceTotals().vat)}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500 font-medium">VAT:</span>
+                <span className="font-semibold text-emerald-600">+{formatMoney(calculateInvoiceTotals().vat)}</span>
+              </div>
 
-              <div className="col-span-2 border-t mt-2 pt-2 grid grid-cols-2">
-                <span className="text-base font-bold">Net Total:</span>
-                <span className="text-base font-bold text-right text-primary-600">{formatMoney(calculateInvoiceTotals().netTotal)}</span>
+              <div className="flex justify-between border-t mt-3 pt-3">
+                <span className="text-lg font-bold">Net Total:</span>
+                <span className="text-lg font-extrabold text-primary-600">{formatMoney(calculateInvoiceTotals().netTotal)}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 border-t pt-4">
-            <Button type="button" variant="outline" onClick={() => setModal(null)}>Cancel</Button>
-            <Button type="submit" loading={saving}>Submit Invoice</Button>
+          <div className="flex justify-end gap-3 border-t pt-6">
+            <Button type="button" variant="outline" onClick={() => setModal(null)} className="px-6">Cancel</Button>
+            <Button type="submit" loading={saving} className="px-8">Submit Invoice</Button>
           </div>
         </form>
       </Modal>

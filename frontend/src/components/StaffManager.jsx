@@ -282,49 +282,71 @@ export default function StaffManager({ mode = 'company', companyId = null, allow
 
       <Modal open={modal} onClose={() => setModal(false)}
         title={editing ? `Edit ${editing.name}` : `Add Employee`} wide>
-        {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
-        <form onSubmit={submit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input label="Full Name *" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <Input label="Email *" type="email" required disabled={!!editing} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <Input label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          <Input label="PAN" value={form.pan} onChange={(e) => setForm({ ...form, pan: e.target.value })} />
+        {error && <div className="mb-6 rounded-xl bg-red-50 p-4 text-sm text-red-600 border border-red-100">{error}</div>}
+        <form onSubmit={submit} className="space-y-8">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="space-y-4">
+               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b pb-1">Basic Information</p>
+               <Input label="Full Name *" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+               <Input label="Email *" type="email" required disabled={!!editing} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+               <div className="grid grid-cols-2 gap-4">
+                  <Input label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  <Input label="PAN" value={form.pan} onChange={(e) => setForm({ ...form, pan: e.target.value })} />
+               </div>
+               <Input label="Position / Title" value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} />
+               <Input label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            </div>
 
-          <Select label="Designation *" required value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })}
-            options={[
-              { value: '', label: 'Select Designation…' },
-              ...designations.map(d => ({
-                value: d._id,
-                label: d.department?.name ? `${d.name} (${d.department.name})` : d.name
-              }))
-            ]} />
+            <div className="space-y-4">
+               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b pb-1">Work & Permissions</p>
+               <Select label="Designation *" required value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })}
+                options={[
+                  { value: '', label: 'Select Designation…' },
+                  ...designations.map(d => ({
+                    value: d._id,
+                    label: d.department?.name ? `${d.name} (${d.department.name})` : d.name
+                  }))
+                ]} />
 
-          <Select label="Work Mode" value={form.workMode} onChange={(e) => setForm({ ...form, workMode: e.target.value })}
-            options={[{ value: 'INDOOR', label: 'Indoor (Office Radius)' }, { value: 'OUTDOOR', label: 'Outdoor (Anywhere)' }]} />
+               <div className="grid grid-cols-2 gap-4">
+                  <Select label="Work Mode" value={form.workMode} onChange={(e) => setForm({ ...form, workMode: e.target.value })}
+                    options={[{ value: 'INDOOR', label: 'Indoor' }, { value: 'OUTDOOR', label: 'Outdoor' }]} />
 
-          {form.workMode === 'INDOOR' && (
-            <Select label="Linked Office / Branch *" required value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })}
-              options={[{ value: 'MAIN', label: 'Main Office (Company Location)' }, ...branches.map(b => ({ value: b._id, label: b.name }))]} />
-          )}
+                  <Select label="Shift" value={form.shift} onChange={(e) => setForm({ ...form, shift: e.target.value })}
+                    options={[
+                      { value: '', label: 'No Specific Shift' },
+                      ...shifts.map(s => ({ value: s._id, label: `${s.name}` }))
+                    ]} />
+               </div>
 
-          <Select label="Shift" value={form.shift} onChange={(e) => setForm({ ...form, shift: e.target.value })}
-            options={[
-              { value: '', label: 'No Specific Shift' },
-              ...shifts.map(s => ({ value: s._id, label: `${s.name} (${s.startTime} - ${s.endTime})` }))
-            ]} />
+               {form.workMode === 'INDOOR' && (
+                <Select label="Linked Office / Branch *" required value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })}
+                  options={[{ value: 'MAIN', label: 'Main Office' }, ...branches.map(b => ({ value: b._id, label: b.name }))]} />
+               )}
 
-          <Input label="Basic Salary" type="number" min="0" value={form.basicSalary} onChange={(e) => setForm({ ...form, basicSalary: e.target.value })} />
-          <Input label="Allowances" type="number" min="0" value={form.allowances} onChange={(e) => setForm({ ...form, allowances: e.target.value })} />
+               <div className="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border">
+                  <Input label="Mobile Devices" type="number" min="1" value={form.allowedMobileCount} onChange={(e) => setForm({ ...form, allowedMobileCount: e.target.value })} />
+                  <Input label="Web Sessions" type="number" min="1" value={form.allowedWebCount} onChange={(e) => setForm({ ...form, allowedWebCount: e.target.value })} />
+               </div>
+            </div>
 
-          <Input label="Allowed Mobile Devices" type="number" min="1" value={form.allowedMobileCount} onChange={(e) => setForm({ ...form, allowedMobileCount: e.target.value })} />
-          <Input label="Allowed Web Sessions" type="number" min="1" value={form.allowedWebCount} onChange={(e) => setForm({ ...form, allowedWebCount: e.target.value })} />
+            <div className="sm:col-span-2 space-y-4">
+               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b pb-1">Finance & Targets</p>
+               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Input label="Basic Salary" type="number" min="0" value={form.basicSalary} onChange={(e) => setForm({ ...form, basicSalary: e.target.value })} />
+                  <Input label="Monthly Allowances" type="number" min="0" value={form.allowances} onChange={(e) => setForm({ ...form, allowances: e.target.value })} />
+                  {mode === 'company' && (
+                    <Input label="Monthly Sales Target" type="number" min="0" value={form.monthlyTarget} onChange={(e) => setForm({ ...form, monthlyTarget: e.target.value })} />
+                  )}
+               </div>
+            </div>
+          </div>
 
-          {mode === 'company' && (
-            <Input label="Monthly Sales Target" type="number" min="0" value={form.monthlyTarget} onChange={(e) => setForm({ ...form, monthlyTarget: e.target.value })} />
-          )}
-          <div className="flex flex-wrap items-center justify-end gap-2 sm:col-span-2 pt-4 border-t">
-            <Button type="button" variant="ghost" onClick={() => setForm(emptyForm)}>Reset</Button>
-            <Button type="button" variant="outline" onClick={() => setModal(false)}>Cancel</Button>
-            <Button type="submit" loading={saving}>{editing ? 'Save Changes' : 'Create'}</Button>
+          <div className="flex items-center justify-end gap-3 pt-6 border-t">
+            <Button type="button" variant="ghost" onClick={() => setForm(emptyForm)}>Reset Form</Button>
+            <div className="flex-1" />
+            <Button type="button" variant="outline" onClick={() => setModal(false)} className="px-6">Cancel</Button>
+            <Button type="submit" loading={saving} className="px-8">{editing ? 'Save Changes' : 'Register Employee'}</Button>
           </div>
         </form>
       </Modal>

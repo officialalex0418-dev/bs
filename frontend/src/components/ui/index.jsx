@@ -306,21 +306,23 @@ export const Modal = ({ open, onClose, title, children, wide }) => {
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4 print:static print:bg-transparent" onClick={onClose} role="dialog">
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4 print:static print:bg-transparent animate-in fade-in duration-200" onClick={onClose} role="dialog">
       <div
         className={cn(
-          'card flex max-h-[95vh] w-full flex-col overflow-hidden rounded-b-none sm:rounded-xl print:max-h-none print:overflow-visible print:shadow-none print:border-none',
-          wide ? 'max-w-4xl' : 'max-w-lg'
+          'card flex max-h-[95vh] w-full flex-col overflow-hidden rounded-b-none sm:rounded-xl shadow-2xl print:max-h-none print:overflow-visible print:shadow-none print:border-none animate-in zoom-in-95 slide-in-from-bottom-10 duration-200',
+          wide ? 'max-w-5xl' : 'max-w-lg'
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
-          <h3 className="font-semibold">{title}</h3>
-          <button onClick={onClose} className="rounded-lg p-1 hover:bg-slate-100 dark:hover:bg-slate-800">
-            <X className="h-5 w-5" />
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
+          <h3 className="text-lg font-bold">{title}</h3>
+          <button onClick={onClose} className="rounded-lg p-2 transition hover:bg-slate-100 dark:hover:bg-slate-800">
+            <X className="h-5 w-5 text-slate-500" />
           </button>
         </div>
-        <div className="overflow-y-auto p-5">{children}</div>
+        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+          {children}
+        </div>
       </div>
     </div>
   );

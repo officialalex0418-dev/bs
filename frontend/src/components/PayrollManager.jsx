@@ -375,14 +375,20 @@ export default function PayrollManager({ scope }) {
                 placeholder="Add the reason for this change"
               />
 
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-primary-50 px-4 py-4 text-sm dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/30">
-                <div className="flex flex-col">
-                    <span className="text-xs text-slate-500 uppercase font-bold tracking-wider">Final Calculation</span>
-                    <span className="text-lg font-bold text-primary-700 dark:text-primary-300">Net Payable: {formatMoney(calculatedFields.netSalary)}</span>
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6 rounded-2xl bg-primary-50 px-6 py-6 text-sm dark:bg-primary-900/10 border-2 border-primary-100 dark:border-primary-900/30 shadow-inner">
+                <div className="flex flex-col items-center md:items-start text-center md:text-left">
+                    <span className="text-[10px] text-primary-600 dark:text-primary-400 uppercase font-extrabold tracking-[0.2em] mb-1">Final Disbursable Amount</span>
+                    <span className="text-3xl font-black text-primary-800 dark:text-primary-100 leading-none">{formatMoney(calculatedFields.netSalary)}</span>
                 </div>
-                <div className="flex gap-4 text-xs text-slate-600 dark:text-slate-400">
-                    <div>Gross Additions: <span className="font-bold text-emerald-600">+{formatMoney(Number(detailForm.basicSalary) + calculatedFields.totalAllowance + Number(detailForm.bonus))}</span></div>
-                    <div>Total Deductions: <span className="font-bold text-red-600">−{formatMoney(calculatedFields.totalDeductions)}</span></div>
+                <div className="flex flex-wrap justify-center gap-4 md:gap-8">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold">Gross Additions</span>
+                        <span className="text-sm font-bold text-emerald-600">+{formatMoney(Number(detailForm.basicSalary) + calculatedFields.totalAllowance + Number(detailForm.bonus))}</span>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold">Total Deductions</span>
+                        <span className="text-sm font-bold text-red-600">−{formatMoney(calculatedFields.totalDeductions)}</span>
+                    </div>
                 </div>
               </div>
 
@@ -398,11 +404,11 @@ export default function PayrollManager({ scope }) {
                 </div>
               ) : null}
 
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => downloadDetail(detail)}>
-                  <FileDown className="h-4 w-4" /> Download PDF
+              <div className="flex justify-end gap-3 pt-6 border-t">
+                <Button type="button" variant="outline" onClick={() => downloadDetail(detail)} className="px-6">
+                  <FileDown className="h-4 w-4 mr-2" /> Download PDF
                 </Button>
-                <Button type="submit" loading={savingDetail}>Save Changes</Button>
+                <Button type="submit" loading={savingDetail} className="px-8">Save Changes</Button>
               </div>
             </form>
           </div>
