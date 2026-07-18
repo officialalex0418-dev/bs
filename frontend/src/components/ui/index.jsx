@@ -97,11 +97,28 @@ export const DatePicker = ({ label, value, onChange, className, position = 'bott
   const { user } = useAuth();
   const format = user?.company?.settings?.dateFormat || 'BS';
   const [show, setShow] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
   const containerRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
-    const fn = (e) => containerRef.current && !containerRef.current.contains(e.target) && setShow(false);
-    if (show) document.addEventListener('mousedown', fn);
+    const fn = (e) => {
+        if (containerRef.current && !containerRef.current.contains(e.target)) {
+            setShow(false);
+        }
+    };
+    if (show) {
+        document.addEventListener('mousedown', fn);
+        if (inputRef.current) {
+            const rect = inputRef.current.getBoundingClientRect();
+            setCoords({
+                top: rect.top + window.scrollY,
+                left: rect.left + window.scrollX,
+                height: rect.height,
+                width: rect.width
+            });
+        }
+    }
     return () => document.removeEventListener('mousedown', fn);
   }, [show]);
 
@@ -127,6 +144,7 @@ export const DatePicker = ({ label, value, onChange, className, position = 'bott
         {label && <span className="mb-1.5 block text-sm font-medium">{label}</span>}
         <div className="relative">
           <input
+            ref={inputRef}
             type={format === 'BS' ? 'text' : 'date'}
             placeholder={format === 'BS' ? 'YYYY-MM-DD (BS)' : ''}
             className={cn('input pr-10', className)}
@@ -145,12 +163,19 @@ export const DatePicker = ({ label, value, onChange, className, position = 'bott
       </label>
 
       {format === 'BS' && show && (
-        <div className={cn(
-          "absolute z-[100] origin-top-left rounded-xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900 w-72 animate-in fade-in zoom-in duration-150",
-          position === 'top' ? "bottom-full mb-2 origin-bottom-left" : "top-full mt-2 left-0",
-          position === 'top-right' ? "bottom-full right-0 mb-2 origin-bottom-right" : "",
-          position === 'bottom-right' ? "top-full right-0 mt-2 origin-top-right" : ""
-        )}>
+        <div
+          className={cn(
+            "fixed z-[10000] origin-top-left rounded-xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900 w-72 animate-in fade-in zoom-in duration-150",
+          )}
+          style={{
+            top: position.includes('top')
+                ? `${coords.top - 320}px`
+                : `${coords.top + coords.height + 8}px`,
+            left: position.includes('right')
+                ? `${coords.left + coords.width - 288}px`
+                : `${coords.left}px`
+          }}
+        >
           <BSCalendarInternal value={value} onSelect={(val) => { onChange(val); setShow(false); }} />
         </div>
       )}
