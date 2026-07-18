@@ -153,12 +153,20 @@ export const schemas = {
   // ---- Sale ----
   createSale: Joi.object({
     productId: objectId.allow(null, ''),
-    productName: Joi.string().max(200).when('productId', { is: Joi.exist().not(null, ''), then: Joi.optional(), otherwise: Joi.required() }),
-    quantity: Joi.number().integer().min(1).required(),
-    amount: Joi.number().min(0).required(),
+    productName: Joi.string().max(200).allow(''),
+    quantity: Joi.number().integer().min(1),
+    amount: Joi.number().min(0),
     customerName: Joi.string().max(150).allow(''),
     remarks: Joi.string().max(500).allow(''),
-  }),
+    items: Joi.array().items(
+      Joi.object({
+        productId: objectId.allow(null, ''),
+        productName: Joi.string().max(200).allow(''),
+        quantity: Joi.number().integer().min(1).required(),
+        amount: Joi.number().min(0).required(),
+      })
+    ),
+  }).or('productId', 'items'),
 
   // ---- Sales Invoice ----
   createSalesInvoice: Joi.object({
