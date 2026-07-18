@@ -21,6 +21,7 @@ export default function VendorDetails() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // 'payment'
   const [payForm, setPayForm] = useState(emptyPayment);
+  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [allProducts, setAllProducts] = useState([]);
@@ -154,13 +155,20 @@ export default function VendorDetails() {
   const submitPayment = async (e) => {
     e.preventDefault();
     setSaving(true);
+    setError('');
     try {
       await api.post('/vendor-payments', { ...payForm, vendorId: id });
       setModal(null);
       setPayForm(emptyPayment);
       load();
     } catch (err) {
-      alert(err.response?.data?.message || 'Payment failed');
+      const msg = err.response?.data?.message || 'Payment failed';
+      const details = err.response?.data?.details;
+      if (details && Array.isArray(details)) {
+        setError(`${msg}: ${details.map(d => d.message).join(', ')}`);
+      } else {
+        setError(msg);
+      }
     } finally {
       setSaving(false);
     }
@@ -360,8 +368,10 @@ export default function VendorDetails() {
       </Card>
 
       {/* Payment Modal */}
-      <Modal open={modal === 'payment'} onClose={() => setModal(null)} title="Record Payment to Vendor">
+      <Modal open={modal === 'payment'} onClose={() => { setModal(null); setError(''); }} title="Record Payment to Vendor">
          <form onSubmit={submitPayment} className="space-y-4">
+            {error && <div className="rounded-lg bg-red-50 p-3 text-xs font-bold text-red-600 border border-red-100">{error}</div>}
+
             <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl mb-4 border">
                <p className="text-xs text-slate-500 uppercase font-bold">Outstanding Balance</p>
                <p className="text-xl font-black text-red-600">{formatMoney(vendor.outstandingBalance)}</p>

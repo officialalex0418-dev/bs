@@ -174,7 +174,7 @@ r.patch('/vendors/:id', protect, authorize(...MANAGERS), scopeCompany, requireFe
 r.delete('/vendors/:id', protect, authorize(...OWNERS), scopeCompany, requireFeature('vendorManagement'), vendor.deleteVendor);
 
 // ============ VENDOR PAYMENTS ============
-r.post('/vendor-payments', protect, authorize(...MANAGERS), scopeCompany, requireFeature('vendorManagement'), vendor.recordVendorPayment);
+r.post('/vendor-payments', protect, authorize(...MANAGERS), scopeCompany, requireFeature('vendorManagement'), validate({ body: schemas.recordVendorPayment }), vendor.recordVendorPayment);
 r.patch('/vendor-payments/:id', protect, authorize(...MANAGERS), scopeCompany, requireFeature('vendorManagement'), vendor.updateVendorPayment);
 r.delete('/vendor-payments/:id', protect, authorize(...OWNERS), scopeCompany, requireFeature('vendorManagement'), vendor.deleteVendorPayment);
 

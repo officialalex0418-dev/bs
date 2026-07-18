@@ -298,6 +298,15 @@ export const schemas = {
     remarks: Joi.string().allow('', null),
   }),
 
+  // ---- Vendor Payment ----
+  recordVendorPayment: Joi.object({
+    vendorId: objectId.required(),
+    amount: Joi.number().min(1).required(),
+    method: Joi.string().valid('CASH', 'CHEQUE', 'BANK_TRANSFER').required(),
+    remarks: Joi.string().max(500).allow(''),
+    paymentDate: Joi.date().allow(null, ''),
+  }),
+
   // ---- Purchase ----
   createPurchase: Joi.object({
     vendorId: objectId.allow(null, ''),
