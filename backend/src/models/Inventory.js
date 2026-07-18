@@ -19,6 +19,7 @@ const inventorySchema = new mongoose.Schema(
     category: { type: String, trim: true, maxlength: 100 },
     quantity: { type: Number, default: 0, min: 0 },
     costPrice: { type: Number, required: true, min: 0 },
+    mrp: { type: Number, required: true, min: 0, default: 0 },
     sellingPrice: {
       type: Number,
       required: true,

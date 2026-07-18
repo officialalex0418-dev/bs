@@ -29,7 +29,7 @@ export default function InventoryPage() {
 
   // Purchase Entry State
   const [purchaseRows, setPurchaseRows] = useState([
-    { productName: '', productId: '', batch: '', price: 0, quantity: 1, amount: 0, expiryDate: '' }
+    { productName: '', productId: '', batch: '', price: 0, mrp: 0, quantity: 1, amount: 0, expiryDate: '' }
   ]);
   const [quickProductRowIndex, setQuickProductRowIndex] = useState(null);
   const [purchaseVendorId, setPurchaseVendorId] = useState('');
@@ -79,7 +79,7 @@ export default function InventoryPage() {
   };
 
   const addPurchaseRow = () => {
-    setPurchaseRows([...purchaseRows, { productName: '', productId: '', batch: '', price: 0, quantity: 1, amount: 0, expiryDate: '' }]);
+    setPurchaseRows([...purchaseRows, { productName: '', productId: '', batch: '', price: 0, mrp: 0, quantity: 1, amount: 0, expiryDate: '' }]);
   };
 
   const updatePurchaseRow = (index, field, value) => {
@@ -176,7 +176,7 @@ export default function InventoryPage() {
   };
 
   const addProductRow = () => {
-    setProductRows([...productRows, { productName: '', sku: '', batch: '', price: 0, quantity: 1, amount: 0, expiryDate: '' }]);
+    setProductRows([...productRows, { productName: '', sku: '', batch: '', price: 0, mrp: 0, quantity: 1, amount: 0, expiryDate: '' }]);
   };
 
   const updateProductRow = (index, field, value) => {
@@ -204,6 +204,7 @@ export default function InventoryPage() {
           productName: row.productName,
           sku: row.sku,
           costPrice: Number(row.price),
+          mrp: Number(row.mrp),
           quantity: Number(row.quantity),
           batchNumber: row.batch,
           expiryDate: row.expiryDate
@@ -214,7 +215,8 @@ export default function InventoryPage() {
           productName: r.productName,
           sku: r.sku || `AUTO-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
           costPrice: Number(r.price),
-          sellingPrice: Number(r.price) * 1.2, // Default 20% markup
+          mrp: Number(r.mrp),
+          sellingPrice: Number(r.mrp), // Default selling price to MRP
           quantity: Number(r.quantity),
           batchNumber: r.batch,
           expiryDate: r.expiryDate
@@ -224,7 +226,7 @@ export default function InventoryPage() {
 
       setModal(null);
       setEditing(null);
-      setProductRows([{ productName: '', sku: '', batch: '', price: 0, quantity: 1, amount: 0, expiryDate: '' }]);
+      setProductRows([{ productName: '', sku: '', batch: '', price: 0, mrp: 0, quantity: 1, amount: 0, expiryDate: '' }]);
       load();
       loadAllProducts();
     } catch (err) {
@@ -482,7 +484,8 @@ export default function InventoryPage() {
                   <th className="px-2 py-3">S.N</th>
                   <th className="px-2 py-3">Name</th>
                   <th className="px-2 py-3">Batch</th>
-                  <th className="px-2 py-3">Price</th>
+                  <th className="px-2 py-3">Cost Price</th>
+                  <th className="px-2 py-3">MRP</th>
                   <th className="px-2 py-3">Quantity</th>
                   <th className="px-2 py-3">Amount</th>
                   <th className="px-2 py-3">Expiry Date</th>
@@ -502,10 +505,13 @@ export default function InventoryPage() {
                       />
                     </td>
                     <td className="px-2 py-2">
-                      <Input value={row.batch} onChange={e => updateProductRow(idx, 'batch', e.target.value)} placeholder="Batch" />
+                      <Input value={row.batch} onChange={e => updateProductRow(idx, 'batch', e.target.value)} placeholder="Batch" required />
                     </td>
                     <td className="px-2 py-2">
                       <Input type="number" min="0" step="0.01" value={row.price} onChange={e => updateProductRow(idx, 'price', e.target.value)} required />
+                    </td>
+                    <td className="px-2 py-2">
+                      <Input type="number" min="0" step="0.01" value={row.mrp} onChange={e => updateProductRow(idx, 'mrp', e.target.value)} required />
                     </td>
                     <td className="px-2 py-2">
                       <Input type="number" min="0" value={row.quantity} onChange={e => updateProductRow(idx, 'quantity', e.target.value)} required />
@@ -514,7 +520,7 @@ export default function InventoryPage() {
                       <div className="font-semibold">{formatMoney(row.amount)}</div>
                     </td>
                     <td className="px-2 py-2">
-                      <DatePicker value={row.expiryDate} onChange={val => updateProductRow(idx, 'expiryDate', val)} />
+                      <DatePicker value={row.expiryDate} onChange={val => updateProductRow(idx, 'expiryDate', val)} required />
                     </td>
                     <td className="px-2 py-2">
                       <button type="button" onClick={() => removeProductRow(idx)} className="text-red-500 hover:text-red-700">
@@ -674,7 +680,8 @@ export default function InventoryPage() {
                   <th className="px-2 py-3">S.N</th>
                   <th className="px-2 py-3">Product Name</th>
                   <th className="px-2 py-3">Batch</th>
-                  <th className="px-2 py-3">Price</th>
+                  <th className="px-2 py-3">Cost Price</th>
+                  <th className="px-2 py-3">MRP</th>
                   <th className="px-2 py-3">Quantity</th>
                   <th className="px-2 py-3">Amount</th>
                   <th className="px-2 py-3">Expiry Date</th>
@@ -692,6 +699,7 @@ export default function InventoryPage() {
                             value={row.productName}
                             onChange={e => updatePurchaseRow(idx, 'productName', e.target.value)}
                             placeholder="New Product Name"
+                            required
                           />
                           <button
                             type="button"
@@ -720,6 +728,7 @@ export default function InventoryPage() {
                             updatePurchaseRow(idx, 'productName', prod?.productName || '');
                             if (prod) {
                               updatePurchaseRow(idx, 'price', prod.costPrice);
+                              updatePurchaseRow(idx, 'mrp', prod.mrp || 0);
                               updatePurchaseRow(idx, 'batch', prod.batchNumber || '');
                             }
                           }}
@@ -736,10 +745,13 @@ export default function InventoryPage() {
                       )}
                     </td>
                     <td className="px-2 py-2">
-                      <Input value={row.batch} onChange={e => updatePurchaseRow(idx, 'batch', e.target.value)} placeholder="Batch" />
+                      <Input value={row.batch} onChange={e => updatePurchaseRow(idx, 'batch', e.target.value)} placeholder="Batch" required />
                     </td>
                     <td className="px-2 py-2">
                       <Input type="number" min="0" step="0.01" value={row.price} onChange={e => updatePurchaseRow(idx, 'price', e.target.value)} required />
+                    </td>
+                    <td className="px-2 py-2">
+                      <Input type="number" min="0" step="0.01" value={row.mrp} onChange={e => updatePurchaseRow(idx, 'mrp', e.target.value)} required />
                     </td>
                     <td className="px-2 py-2">
                       <Input type="number" min="1" value={row.quantity} onChange={e => updatePurchaseRow(idx, 'quantity', e.target.value)} required />
@@ -748,7 +760,7 @@ export default function InventoryPage() {
                       <div className="font-semibold">{formatMoney(row.amount)}</div>
                     </td>
                     <td className="px-2 py-2">
-                      <DatePicker value={row.expiryDate} onChange={val => updatePurchaseRow(idx, 'expiryDate', val)} />
+                      <DatePicker value={row.expiryDate} onChange={val => updatePurchaseRow(idx, 'expiryDate', val)} required />
                     </td>
                     <td className="px-2 py-2">
                       <button type="button" onClick={() => removePurchaseRow(idx)} className="text-red-500 hover:text-red-700">

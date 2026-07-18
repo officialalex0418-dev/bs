@@ -29,6 +29,8 @@ export const createPurchase = asyncHandler(async (req, res) => {
     if (product) {
       product.quantity += Number(item.quantity);
       product.costPrice = Number(item.price); // Update cost price to latest purchase price
+      product.mrp = Number(item.mrp || product.mrp || 0);
+      product.sellingPrice = product.mrp; // Update selling price to MRP
       if (item.expiryDate) product.expiryDate = item.expiryDate;
       if (vendorId) product.vendor = vendorId;
 
@@ -48,7 +50,8 @@ export const createPurchase = asyncHandler(async (req, res) => {
         batchNumber: (item.batch || '').trim(),
         quantity: Number(item.quantity),
         costPrice: Number(item.price),
-        sellingPrice: Number(item.price) * 1.2, // Default 20% markup
+        mrp: Number(item.mrp || 0),
+        sellingPrice: Number(item.mrp || 0), // Default selling price to MRP
         vendor: vendorId || null,
         expiryDate: item.expiryDate || null,
         movements: [{
@@ -65,6 +68,7 @@ export const createPurchase = asyncHandler(async (req, res) => {
       productName: item.productName,
       batch: item.batch,
       price: Number(item.price),
+      mrp: Number(item.mrp || 0),
       quantity: Number(item.quantity),
       amount: itemAmount,
       expiryDate: item.expiryDate
@@ -154,6 +158,8 @@ export const updatePurchase = asyncHandler(async (req, res) => {
       if (product) {
         product.quantity += Number(item.quantity);
         product.costPrice = Number(item.price);
+        product.mrp = Number(item.mrp || product.mrp || 0);
+        product.sellingPrice = product.mrp;
         if (item.expiryDate) product.expiryDate = item.expiryDate;
 
         product.movements.push({
@@ -172,7 +178,8 @@ export const updatePurchase = asyncHandler(async (req, res) => {
           batchNumber: (item.batch || '').trim(),
           quantity: Number(item.quantity),
           costPrice: Number(item.price),
-          sellingPrice: Number(item.price) * 1.2,
+          mrp: Number(item.mrp || 0),
+          sellingPrice: Number(item.mrp || 0),
           vendor: vendorId || purchase.vendor,
           expiryDate: item.expiryDate || null,
           movements: [{
@@ -189,6 +196,7 @@ export const updatePurchase = asyncHandler(async (req, res) => {
         productName: item.productName,
         batch: item.batch,
         price: Number(item.price),
+        mrp: Number(item.mrp || 0),
         quantity: Number(item.quantity),
         amount: itemAmount,
         expiryDate: item.expiryDate
