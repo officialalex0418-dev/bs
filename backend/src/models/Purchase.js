@@ -15,6 +15,8 @@ const purchaseSchema = new mongoose.Schema({
   company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
   staff: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
+  billNumber: { type: String },
+  billDate: { type: Date },
   items: [purchaseItemSchema],
   totalAmount: { type: Number, required: true, min: 0 },
   discountPct: { type: Number, default: 0 },

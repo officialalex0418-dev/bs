@@ -5,7 +5,7 @@ import { ApiError, asyncHandler } from '../utils/ApiError.js';
 import { audit } from '../utils/audit.js';
 
 export const createPurchase = asyncHandler(async (req, res) => {
-  const { items, discountPct, vatPct, vendorId } = req.body;
+  const { items, discountPct, vatPct, vendorId, billNumber, billDate } = req.body;
   const companyId = req.companyId;
 
   if (!items || !items.length) {
@@ -84,6 +84,8 @@ export const createPurchase = asyncHandler(async (req, res) => {
     company: companyId,
     staff: req.user._id,
     vendor: vendorId || null,
+    billNumber,
+    billDate,
     items: processedItems,
     totalAmount,
     discountPct: Number(discountPct) || 0,
@@ -115,10 +117,13 @@ export const listPurchases = asyncHandler(async (req, res) => {
 
 export const updatePurchase = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { purchaseDate, items, discountPct, vatPct, vendorId } = req.body;
+  const { purchaseDate, items, discountPct, vatPct, vendorId, billNumber, billDate } = req.body;
 
   const purchase = await Purchase.findOne({ _id: id, company: req.companyId });
   if (!purchase) throw ApiError.notFound('Purchase record not found');
+
+  if (billNumber !== undefined) purchase.billNumber = billNumber;
+  if (billDate !== undefined) purchase.billDate = billDate;
 
   const oldNetTotal = purchase.netTotal;
 

@@ -297,4 +297,22 @@ export const schemas = {
     status: Joi.string().valid('ISSUED', 'COLLECTED', 'DEPOSITED', 'CASHED', 'BOUNCED'),
     remarks: Joi.string().allow('', null),
   }),
+
+  // ---- Purchase ----
+  createPurchase: Joi.object({
+    vendorId: objectId.allow(null, ''),
+    billNumber: Joi.string().allow(''),
+    billDate: Joi.date().allow(null, ''),
+    items: Joi.array().items(Joi.object({
+      productId: objectId.allow(null, ''),
+      productName: Joi.string().required(),
+      batch: Joi.string().allow(''),
+      price: Joi.number().min(0).required(),
+      mrp: Joi.number().min(0).required(),
+      quantity: Joi.number().integer().min(1).required(),
+      expiryDate: Joi.date().allow(null, ''),
+    })).min(1).required(),
+    discountPct: Joi.number().min(0).max(100),
+    vatPct: Joi.number().min(0).max(100),
+  }),
 };

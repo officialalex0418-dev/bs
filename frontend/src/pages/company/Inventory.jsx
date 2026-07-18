@@ -34,6 +34,8 @@ export default function InventoryPage() {
   ]);
   const [quickProductRowIndex, setQuickProductRowIndex] = useState(null);
   const [purchaseVendorId, setPurchaseVendorId] = useState('');
+  const [purchaseBillNumber, setPurchaseBillNumber] = useState('');
+  const [purchaseBillDate, setPurchaseBillDate] = useState('');
   const [purchaseDiscountPct, setPurchaseDiscountPct] = useState(0);
   const [purchaseVatPct, setPurchaseVatPct] = useState(0);
 
@@ -113,12 +115,16 @@ export default function InventoryPage() {
       await api.post('/purchases', {
         items: purchaseRows,
         vendorId: purchaseVendorId,
+        billNumber: purchaseBillNumber,
+        billDate: purchaseBillDate,
         discountPct: purchaseDiscountPct,
         vatPct: purchaseVatPct
       });
       setModal(null);
-      setPurchaseRows([{ productName: '', productId: '', batch: '', price: 0, quantity: 1, amount: 0, expiryDate: '' }]);
+      setPurchaseRows([{ productName: '', productId: '', batch: '', price: 0, mrp: 0, quantity: 1, amount: 0, expiryDate: '' }]);
       setPurchaseVendorId('');
+      setPurchaseBillNumber('');
+      setPurchaseBillDate('');
       load();
       loadAllProducts();
     } catch (err) {
@@ -714,6 +720,28 @@ export default function InventoryPage() {
                 })()}
               </div>
             )}
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary-500" /> Bill Details
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input
+                label="Bill NO"
+                placeholder="e.g. INV-2024-001"
+                value={purchaseBillNumber}
+                onChange={e => setPurchaseBillNumber(e.target.value)}
+                className="h-11"
+              />
+              <DatePicker
+                label="Bill Issue Date"
+                value={purchaseBillDate}
+                onChange={val => setPurchaseBillDate(val)}
+                className="h-11"
+                position="bottom"
+              />
+            </div>
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">

@@ -125,7 +125,7 @@ r.patch('/sales-invoices/:id', protect, authorize(...MANAGERS), scopeCompany, va
 r.delete('/sales-invoices/:id', protect, authorize(...OWNERS), scopeCompany, salesInvoice.deleteSalesInvoice);
 
 // ============ PURCHASES ============
-r.post('/purchases', protect, authorize(...MANAGERS), scopeCompany, purchase.createPurchase);
+r.post('/purchases', protect, authorize(...MANAGERS), scopeCompany, validate({ body: schemas.createPurchase }), purchase.createPurchase);
 r.get('/purchases', protect, authorize(...MANAGERS), scopeCompany, purchase.listPurchases);
 r.patch('/purchases/:id', protect, authorize(...MANAGERS), scopeCompany, purchase.updatePurchase);
 
