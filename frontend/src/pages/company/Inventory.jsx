@@ -23,6 +23,7 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('');
   const [lowOnly, setLowOnly] = useState(false);
   const [expirySoon, setExpirySoon] = useState(false);
+  const [expiredOnly, setExpiredOnly] = useState(false);
   const [modal, setModal] = useState(null); // 'form' | 'stock' | 'bulk' | 'vendor' | 'purchase' | 'invoice' | 'quickProduct'
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -245,14 +246,15 @@ export default function InventoryPage() {
           page,
           search: search || undefined,
           lowStock: lowOnly || undefined,
-          expirySoon: expirySoon || undefined
+          expirySoon: expirySoon || undefined,
+          expired: expiredOnly || undefined
         }
       });
       setData(data.data);
     } catch (err) {
       if (err.response?.status === 403) setFeatureBlocked(true);
     }
-  }, [page, search, lowOnly, expirySoon]);
+  }, [page, search, lowOnly, expirySoon, expiredOnly]);
 
   const loadVendors = useCallback(async () => {
     try {
@@ -347,6 +349,7 @@ export default function InventoryPage() {
           <h1 className="text-2xl font-bold">Inventory</h1>
           {data.lowStockCount > 0 && <Badge color="red">{data.lowStockCount} Low Stock</Badge>}
           {data.nearExpiryCount > 0 && <Badge color="yellow">{data.nearExpiryCount} Near Expiry</Badge>}
+          {data.expiredCount > 0 && <Badge color="red">{data.expiredCount} Expired</Badge>}
         </div>
         <div className="flex gap-2">
           <Button
@@ -379,6 +382,10 @@ export default function InventoryPage() {
           <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
             <input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={expirySoon} onChange={(e) => { setExpirySoon(e.target.checked); setPage(1); }} />
             Expiring soon
+          </label>
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400">
+            <input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={expiredOnly} onChange={(e) => { setExpiredOnly(e.target.checked); setPage(1); }} />
+            Expired
           </label>
         </div>
         <Table

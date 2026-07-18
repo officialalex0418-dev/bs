@@ -17,6 +17,8 @@ export const listInventory = asyncHandler(async (req, res) => {
 
   if (req.query.expirySoon === 'true') {
     filter.expiryDate = { $lte: thirtyDaysFromNow, $gte: new Date() };
+  } else if (req.query.expired === 'true') {
+    filter.expiryDate = { $lt: new Date() };
   }
 
   if (req.query.search) {
@@ -26,7 +28,7 @@ export const listInventory = asyncHandler(async (req, res) => {
     ];
   }
 
-  const [items, total, lowStockCount, nearExpiryCount] = await Promise.all([
+  const [items, total, lowStockCount, nearExpiryCount, expiredCount] = await Promise.all([
     Inventory.find(filter).populate('vendor', 'name').sort('productName').skip(skip).limit(limit),
     Inventory.countDocuments(filter),
     Inventory.countDocuments({ company: req.companyId, isActive: true, $expr: { $lte: ['$quantity', '$reorderLevel'] } }),
@@ -35,8 +37,13 @@ export const listInventory = asyncHandler(async (req, res) => {
       isActive: true,
       expiryDate: { $lte: thirtyDaysFromNow, $gte: new Date() }
     }),
+    Inventory.countDocuments({
+      company: req.companyId,
+      isActive: true,
+      expiryDate: { $lt: new Date() }
+    }),
   ]);
-  res.json({ success: true, data: { ...paginatedResponse(items, total, page, limit), lowStockCount, nearExpiryCount } });
+  res.json({ success: true, data: { ...paginatedResponse(items, total, page, limit), lowStockCount, nearExpiryCount, expiredCount } });
 });
 
 /** POST /inventory */
