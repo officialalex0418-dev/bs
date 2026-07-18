@@ -238,7 +238,7 @@ export const getSalesMetadata = asyncHandler(async (req, res) => {
   const companyId = req.companyId;
 
   const [products, customers] = await Promise.all([
-    Inventory.find({ company: companyId, isActive: true }).select('productName sellingPrice quantity sku batchNumber'),
+    Inventory.find({ company: companyId, isActive: true }).select('productName sellingPrice mrp quantity sku batchNumber'),
     Customer.find({ company: companyId }).select('name address contactNumber panVat ownerName').sort('name'),
   ]);
 
