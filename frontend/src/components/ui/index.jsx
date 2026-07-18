@@ -309,8 +309,8 @@ export const Modal = ({ open, onClose, title, children, wide }) => {
     <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4 print:static print:bg-transparent animate-in fade-in duration-200" onClick={onClose} role="dialog">
       <div
         className={cn(
-          'card flex max-h-[95vh] w-full flex-col overflow-hidden rounded-b-none sm:rounded-xl shadow-2xl print:max-h-none print:overflow-visible print:shadow-none print:border-none animate-in zoom-in-95 slide-in-from-bottom-10 duration-200',
-          wide ? 'max-w-5xl' : 'max-w-lg'
+          'card flex max-h-[95vh] w-full flex-col overflow-visible rounded-b-none sm:rounded-xl shadow-2xl print:max-h-none print:overflow-visible print:shadow-none print:border-none animate-in zoom-in-95 slide-in-from-bottom-10 duration-200',
+          wide ? 'max-w-7xl' : 'max-w-lg'
         )}
         onClick={(e) => e.stopPropagation()}
       >
@@ -320,7 +320,7 @@ export const Modal = ({ open, onClose, title, children, wide }) => {
             <X className="h-5 w-5 text-slate-500" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800 min-h-[400px]">
           {children}
         </div>
       </div>

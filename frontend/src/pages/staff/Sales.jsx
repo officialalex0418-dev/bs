@@ -256,23 +256,23 @@ export default function StaffSales() {
 
       <Modal open={modal} onClose={() => { setModal(false); resetForm(); }} title={editingId ? "Edit Sales Entry" : "Submit Sales Entry"} wide>
         {submitError && <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600 border border-red-100">{submitError}</div>}
-        <form onSubmit={submit} className="space-y-6">
+        <form onSubmit={submit} className="space-y-6 pb-48">
 
-          <div className="overflow-x-auto border rounded-xl dark:border-slate-800">
+          <div className="overflow-x-auto border rounded-xl dark:border-slate-800 shadow-sm">
             <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 dark:bg-slate-900/50 border-b dark:border-slate-800">
                     <tr>
-                        <th className="px-3 py-3 font-bold">Product</th>
-                        <th className="px-3 py-3 font-bold w-24">Qty</th>
-                        <th className="px-3 py-3 font-bold w-32">Price</th>
-                        <th className="px-3 py-3 font-bold w-32 text-right">Amount</th>
-                        <th className="px-3 py-3 w-10"></th>
+                        <th className="px-4 py-4 font-bold text-slate-700 dark:text-slate-200">Product</th>
+                        <th className="px-4 py-4 font-bold text-slate-700 dark:text-slate-200 w-28">Qty</th>
+                        <th className="px-4 py-4 font-bold text-slate-700 dark:text-slate-200 w-36">Price</th>
+                        <th className="px-4 py-4 font-bold text-slate-700 dark:text-slate-200 w-40 text-right">Amount</th>
+                        <th className="px-4 py-4 w-10"></th>
                     </tr>
                 </thead>
                 <tbody className="divide-y dark:divide-slate-800">
                     {items.map((row, idx) => (
-                        <tr key={idx} className="group">
-                            <td className="px-2 py-2">
+                        <tr key={idx} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                            <td className="px-3 py-3">
                                 <Select
                                     value={row.productId}
                                     onChange={(e) => updateRow(idx, 'productId', e.target.value)}
@@ -281,19 +281,19 @@ export default function StaffSales() {
                                         ...metadata.products.map(p => ({ value: p._id, label: `${p.productName} (Stock: ${p.quantity})` }))
                                     ]}
                                     required
-                                    className="h-9 text-xs"
+                                    className="h-10"
                                 />
                             </td>
-                            <td className="px-2 py-2">
-                                <Input type="number" min="1" required value={row.quantity} onChange={(e) => updateRow(idx, 'quantity', e.target.value)} className="h-9 text-xs" />
+                            <td className="px-3 py-3">
+                                <Input type="number" min="1" required value={row.quantity} onChange={(e) => updateRow(idx, 'quantity', e.target.value)} className="h-10" />
                             </td>
-                            <td className="px-2 py-2">
-                                <Input type="number" min="0" step="0.01" required value={row.sellingPrice} onChange={(e) => updateRow(idx, 'sellingPrice', e.target.value)} className="h-9 text-xs" />
+                            <td className="px-3 py-3">
+                                <Input type="number" min="0" step="0.01" required value={row.sellingPrice} onChange={(e) => updateRow(idx, 'sellingPrice', e.target.value)} className="h-10" />
                             </td>
-                            <td className="px-3 py-2 text-right font-bold text-slate-700 dark:text-slate-200">
+                            <td className="px-4 py-3 text-right font-bold text-slate-900 dark:text-white">
                                 {formatMoney(row.amount)}
                             </td>
-                            <td className="px-2 py-2">
+                            <td className="px-3 py-3">
                                 {!editingId && (
                                     <button type="button" onClick={() => removeRow(idx)} className="text-slate-300 hover:text-red-500 transition-colors">
                                         <Trash2 className="h-4 w-4" />

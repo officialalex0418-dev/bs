@@ -480,54 +480,55 @@ export default function InventoryPage() {
       {/* Product Form Modal - Transformed to look like Purchase Entry */}
       <Modal open={modal === 'form'} onClose={() => setModal(null)} title="Add Products" wide>
         {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
-        <form onSubmit={submitProductsTable} className="space-y-6">
-          <div className="overflow-x-auto">
+        <form onSubmit={submitProductsTable} className="space-y-6 pb-64">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <table className="w-full text-left text-sm">
               <thead className="border-b bg-slate-50 dark:bg-slate-900/50">
                 <tr>
-                  <th className="px-2 py-3">S.N</th>
-                  <th className="px-2 py-3">Name</th>
-                  <th className="px-2 py-3">Batch</th>
-                  <th className="px-2 py-3">Cost Price</th>
-                  <th className="px-2 py-3">MRP</th>
-                  <th className="px-2 py-3">Quantity</th>
-                  <th className="px-2 py-3">Amount</th>
-                  <th className="px-2 py-3">Expiry Date</th>
-                  <th className="px-2 py-3"></th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200">S.N</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200">Product Name</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200">Batch</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200">Cost Price</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-32">MRP</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-24">Quantity</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 text-right">Amount</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-44">Expiry Date</th>
+                  <th className="px-3 py-4 w-10"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y dark:divide-slate-800">
                 {productRows.map((row, idx) => (
-                  <tr key={idx}>
-                    <td className="px-2 py-2">{idx + 1}</td>
-                    <td className="px-2 py-2 min-w-[200px]">
+                  <tr key={idx} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td className="px-3 py-3 text-slate-400">{idx + 1}</td>
+                    <td className="px-2 py-3 min-w-[220px]">
                       <Input
                         value={row.productName}
                         onChange={e => updateProductRow(idx, 'productName', e.target.value)}
-                        placeholder="Product Name"
+                        placeholder="e.g. Organic Soap"
                         required
+                        className="h-10 text-sm"
                       />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input value={row.batch} onChange={e => updateProductRow(idx, 'batch', e.target.value)} placeholder="Batch" required />
+                    <td className="px-2 py-3">
+                      <Input value={row.batch} onChange={e => updateProductRow(idx, 'batch', e.target.value)} placeholder="Batch #" required className="h-10 text-sm" />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input type="number" min="0" step="0.01" value={row.price} onChange={e => updateProductRow(idx, 'price', e.target.value)} required />
+                    <td className="px-2 py-3">
+                      <Input type="number" min="0" step="0.01" value={row.price} onChange={e => updateProductRow(idx, 'price', e.target.value)} required className="h-10 text-sm" />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input type="number" min="0" step="0.01" value={row.mrp} onChange={e => updateProductRow(idx, 'mrp', e.target.value)} required />
+                    <td className="px-2 py-3">
+                      <Input type="number" min="0" step="0.01" value={row.mrp} onChange={e => updateProductRow(idx, 'mrp', e.target.value)} required className="h-10 text-sm" />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input type="number" min="0" value={row.quantity} onChange={e => updateProductRow(idx, 'quantity', e.target.value)} required />
+                    <td className="px-2 py-3">
+                      <Input type="number" min="0" value={row.quantity} onChange={e => updateProductRow(idx, 'quantity', e.target.value)} required className="h-10 text-sm" />
                     </td>
-                    <td className="px-2 py-2">
-                      <div className="font-semibold">{formatMoney(row.amount)}</div>
+                    <td className="px-3 py-3 text-right">
+                      <div className="font-bold text-slate-900 dark:text-white">{formatMoney(row.amount)}</div>
                     </td>
-                    <td className="px-2 py-2">
-                      <DatePicker value={row.expiryDate} onChange={val => updateProductRow(idx, 'expiryDate', val)} required />
+                    <td className="px-2 py-3">
+                      <DatePicker value={row.expiryDate} onChange={val => updateProductRow(idx, 'expiryDate', val)} required className="h-10 text-sm" />
                     </td>
-                    <td className="px-2 py-2">
-                      <button type="button" onClick={() => removeProductRow(idx)} className="text-red-500 hover:text-red-700">
+                    <td className="px-2 py-3">
+                      <button type="button" onClick={() => removeProductRow(idx)} className="text-slate-300 hover:text-red-500 transition-colors">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </td>
@@ -644,9 +645,9 @@ export default function InventoryPage() {
       {/* Purchase Entry Modal */}
       <Modal open={modal === 'purchase'} onClose={() => setModal(null)} title="New Purchase Entry" wide>
         {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
-        <form onSubmit={submitPurchase} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border">
-            <div>
+        <form onSubmit={submitPurchase} className="space-y-6 pb-64">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end bg-slate-50 dark:bg-slate-900/30 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner">
+            <div className="space-y-1">
               <Select
                 label="Select Vendor *"
                 value={purchaseVendorId}
@@ -660,16 +661,23 @@ export default function InventoryPage() {
                   ...vendors.map(v => ({ value: v._id, label: v.name }))
                 ]}
                 required
+                className="h-11"
               />
             </div>
             {purchaseVendorId && purchaseVendorId !== 'NEW' && (
-              <div className="text-xs space-y-1 p-2 bg-white dark:bg-slate-800 rounded border">
+              <div className="text-xs space-y-1.5 p-4 bg-white dark:bg-slate-800 rounded-xl border shadow-sm flex flex-col justify-center min-h-[68px]">
                 {(() => {
                   const v = vendors.find(x => x._id === purchaseVendorId);
                   return v ? (
                     <>
-                      <p><strong>PAN:</strong> {v.panVat || 'N/A'}</p>
-                      <p><strong>Reg Num:</strong> {v.registrationNumber || 'N/A'}</p>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400 font-medium">PAN / VAT</span>
+                        <span className="font-bold">{v.panVat || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400 font-medium">Reg Number</span>
+                        <span className="font-bold">{v.registrationNumber || 'N/A'}</span>
+                      </div>
                     </>
                   ) : null;
                 })()}
@@ -677,26 +685,26 @@ export default function InventoryPage() {
             )}
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <table className="w-full text-left text-sm">
               <thead className="border-b bg-slate-50 dark:bg-slate-900/50">
                 <tr>
-                  <th className="px-2 py-3">S.N</th>
-                  <th className="px-2 py-3">Product Name</th>
-                  <th className="px-2 py-3">Batch</th>
-                  <th className="px-2 py-3">Cost Price</th>
-                  <th className="px-2 py-3">MRP</th>
-                  <th className="px-2 py-3">Quantity</th>
-                  <th className="px-2 py-3">Amount</th>
-                  <th className="px-2 py-3">Expiry Date</th>
-                  <th className="px-2 py-3"></th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 text-center w-12">#</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200">Product</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-32">Batch</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-32">Cost Price</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-32">MRP</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-24">Qty</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 text-right">Amount</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-44">Expiry Date</th>
+                  <th className="px-3 py-4 w-10"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y dark:divide-slate-800">
                 {purchaseRows.map((row, idx) => (
-                  <tr key={idx}>
-                    <td className="px-2 py-2">{idx + 1}</td>
-                    <td className="px-2 py-2 min-w-[200px]">
+                  <tr key={idx} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td className="px-3 py-3 text-center text-slate-400 font-medium">{idx + 1}</td>
+                    <td className="px-2 py-3 min-w-[220px]">
                       {row.productId === '' && row.productName ? (
                         <div className="relative">
                           <Input
@@ -704,6 +712,7 @@ export default function InventoryPage() {
                             onChange={e => updatePurchaseRow(idx, 'productName', e.target.value)}
                             placeholder="New Product Name"
                             required
+                            className="h-10"
                           />
                           <button
                             type="button"
@@ -711,7 +720,7 @@ export default function InventoryPage() {
                               updatePurchaseRow(idx, 'productName', '');
                               updatePurchaseRow(idx, 'productId', '');
                             }}
-                            className="absolute -top-2 -right-2 bg-slate-100 rounded-full p-0.5 shadow-sm hover:bg-slate-200"
+                            className="absolute -top-2 -right-2 bg-slate-100 dark:bg-slate-700 rounded-full p-1 shadow-md hover:bg-slate-200"
                             title="Back to list"
                           >
                             <X className="h-3 w-3" />
@@ -719,7 +728,7 @@ export default function InventoryPage() {
                         </div>
                       ) : (
                         <Select
-                          className="w-full"
+                          className="w-full h-10"
                           value={row.productId}
                           onChange={(e) => {
                             if (e.target.value === 'NEW') {
@@ -748,26 +757,26 @@ export default function InventoryPage() {
                         />
                       )}
                     </td>
-                    <td className="px-2 py-2">
-                      <Input value={row.batch} onChange={e => updatePurchaseRow(idx, 'batch', e.target.value)} placeholder="Batch" required />
+                    <td className="px-2 py-3">
+                      <Input value={row.batch} onChange={e => updatePurchaseRow(idx, 'batch', e.target.value)} placeholder="Batch" required className="h-10" />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input type="number" min="0" step="0.01" value={row.price} onChange={e => updatePurchaseRow(idx, 'price', e.target.value)} required />
+                    <td className="px-2 py-3">
+                      <Input type="number" min="0" step="0.01" value={row.price} onChange={e => updatePurchaseRow(idx, 'price', e.target.value)} required className="h-10" />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input type="number" min="0" step="0.01" value={row.mrp} onChange={e => updatePurchaseRow(idx, 'mrp', e.target.value)} required />
+                    <td className="px-2 py-3">
+                      <Input type="number" min="0" step="0.01" value={row.mrp} onChange={e => updatePurchaseRow(idx, 'mrp', e.target.value)} required className="h-10" />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input type="number" min="1" value={row.quantity} onChange={e => updatePurchaseRow(idx, 'quantity', e.target.value)} required />
+                    <td className="px-2 py-3">
+                      <Input type="number" min="1" value={row.quantity} onChange={e => updatePurchaseRow(idx, 'quantity', e.target.value)} required className="h-10" />
                     </td>
-                    <td className="px-2 py-2">
-                      <div className="font-semibold">{formatMoney(row.amount)}</div>
+                    <td className="px-3 py-3 text-right">
+                      <div className="font-bold text-slate-900 dark:text-white">{formatMoney(row.amount)}</div>
                     </td>
-                    <td className="px-2 py-2">
-                      <DatePicker value={row.expiryDate} onChange={val => updatePurchaseRow(idx, 'expiryDate', val)} required />
+                    <td className="px-2 py-3">
+                      <DatePicker value={row.expiryDate} onChange={val => updatePurchaseRow(idx, 'expiryDate', val)} required className="h-10" />
                     </td>
-                    <td className="px-2 py-2">
-                      <button type="button" onClick={() => removePurchaseRow(idx)} className="text-red-500 hover:text-red-700">
+                    <td className="px-2 py-3">
+                      <button type="button" onClick={() => removePurchaseRow(idx)} className="text-slate-300 hover:text-red-500 transition-colors">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </td>
@@ -830,8 +839,8 @@ export default function InventoryPage() {
       {/* Sales Invoice Modal */}
       <Modal open={modal === 'invoice'} onClose={() => setModal(null)} title="Create Sales Invoice" wide>
         {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
-        <form onSubmit={submitInvoice} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border">
+        <form onSubmit={submitInvoice} className="space-y-6 pb-48">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end bg-slate-50 dark:bg-slate-900/30 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner">
             <div className="space-y-4">
               <Select
                 label="Distributor Name *"
@@ -846,61 +855,66 @@ export default function InventoryPage() {
                   ...distributors.map(d => ({ value: d._id, label: d.name }))
                 ]}
                 required
+                className="h-11"
               />
             </div>
 
             {invoiceDistributorId && invoiceDistributorId !== 'NEW' && (
-              <div className="text-xs space-y-1 p-3 bg-white dark:bg-slate-800 rounded-lg border shadow-sm">
+              <div className="text-xs space-y-1 p-3 bg-white dark:bg-slate-800 rounded-lg border shadow-sm min-h-[68px] flex flex-col justify-center">
                 {(() => {
                   const d = distributors.find(x => x._id === invoiceDistributorId);
                   return d ? (
                     <>
-                      <p className="font-bold border-b pb-1 mb-1">{d.name}</p>
-                      <p><strong>PAN:</strong> {d.panVat || 'N/A'}</p>
-                      <p><strong>Reg Num:</strong> {d.registrationNumber || 'N/A'}</p>
-                      <p><strong>Phone:</strong> {d.phone || 'N/A'}</p>
-                      <p><strong>Location:</strong> {d.address || 'N/A'}</p>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">PAN / VAT</span>
+                        <span className="font-bold">{d.panVat || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Phone</span>
+                        <span className="font-bold">{d.phone || 'N/A'}</span>
+                      </div>
                     </>
                   ) : null;
                 })()}
               </div>
             )}
 
-            <div className="md:col-span-2 bg-white dark:bg-slate-800 p-3 rounded-lg border">
-              <p className="text-sm font-medium mb-2">Payment Method *</p>
-              <div className="flex flex-wrap gap-4">
+            <div className="md:col-span-2 bg-white dark:bg-slate-800 p-4 rounded-xl border shadow-sm">
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3">Payment Method *</p>
+              <div className="flex flex-wrap gap-6">
                 {['Cash', 'Online/QR', 'Cheque', 'Credit'].map(method => (
                   <Checkbox
                     key={method}
                     label={method}
                     checked={invoicePaymentMethod === method}
                     onChange={() => setInvoicePaymentMethod(method)}
+                    className="scale-110"
                   />
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <table className="w-full text-left text-sm">
               <thead className="border-b bg-slate-50 dark:bg-slate-900/50">
                 <tr>
-                  <th className="px-2 py-3">S.N</th>
-                  <th className="px-2 py-3">Product Name</th>
-                  <th className="px-2 py-3">Batch</th>
-                  <th className="px-2 py-3">Price</th>
-                  <th className="px-2 py-3">Quantity</th>
-                  <th className="px-2 py-3">Amount</th>
-                  <th className="px-2 py-3"></th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 text-center w-12">#</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200">Product</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-32">Batch</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-32">Unit Price</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 w-24">Qty</th>
+                  <th className="px-3 py-4 font-bold text-slate-700 dark:text-slate-200 text-right">Amount</th>
+                  <th className="px-3 py-4 w-10"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y dark:divide-slate-800">
                 {invoiceRows.map((row, idx) => (
-                  <tr key={idx}>
-                    <td className="px-2 py-2">{idx + 1}</td>
-                    <td className="px-2 py-2 min-w-[200px]">
+                  <tr key={idx} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td className="px-3 py-3 text-center text-slate-400">{idx + 1}</td>
+                    <td className="px-2 py-3 min-w-[250px]">
                       <Select
-                        className="w-full"
+                        className="w-full h-10"
                         value={row.productId}
                         onChange={(e) => {
                           const prod = allProducts.find(p => p._id === e.target.value);
@@ -919,20 +933,20 @@ export default function InventoryPage() {
                         required
                       />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input value={row.batch} onChange={e => updateInvoiceRow(idx, 'batch', e.target.value)} placeholder="Batch" />
+                    <td className="px-2 py-3">
+                      <Input value={row.batch} onChange={e => updateInvoiceRow(idx, 'batch', e.target.value)} placeholder="Batch" className="h-10" />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input type="number" min="0" step="0.01" value={row.price} onChange={e => updateInvoiceRow(idx, 'price', e.target.value)} required />
+                    <td className="px-2 py-3">
+                      <Input type="number" min="0" step="0.01" value={row.price} onChange={e => updateInvoiceRow(idx, 'price', e.target.value)} required className="h-10" />
                     </td>
-                    <td className="px-2 py-2">
-                      <Input type="number" min="1" value={row.quantity} onChange={e => updateInvoiceRow(idx, 'quantity', e.target.value)} required />
+                    <td className="px-2 py-3">
+                      <Input type="number" min="1" value={row.quantity} onChange={e => updateInvoiceRow(idx, 'quantity', e.target.value)} required className="h-10" />
                     </td>
-                    <td className="px-2 py-2">
-                      <div className="font-semibold">{formatMoney(row.amount)}</div>
+                    <td className="px-3 py-3 text-right">
+                      <div className="font-bold text-slate-900 dark:text-white">{formatMoney(row.amount)}</div>
                     </td>
-                    <td className="px-2 py-2 text-right">
-                      <button type="button" onClick={() => removeInvoiceRow(idx)} className="text-red-500 hover:text-red-700">
+                    <td className="px-2 py-3">
+                      <button type="button" onClick={() => removeInvoiceRow(idx)} className="text-slate-300 hover:text-red-500 transition-colors">
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </td>
