@@ -118,22 +118,55 @@ export const bulkUpload = asyncHandler(async (req, res) => {
   const toInsert = [];
 
   for (const p of products) {
-    if (!p.productName || !p.sku || p.costPrice === undefined || p.sellingPrice === undefined) {
-      results.errors.push({ sku: p.sku, error: 'Missing required fields' });
+    // Normalization logic for different field names (supporting image format)
+    const normalized = {
+        productName: p.productName || p['Product Name'],
+        batchNumber: p.batchNumber || p.batch || p['Batch'],
+        quantity: p.quantity || p.qty || p['QTY'] || 0,
+        costPrice: p.costPrice || p['Cost Price'],
+        mrp: p.mrp || p['MPR'],
+        sellingPrice: p.sellingPrice || p.mrp || p['MPR'], // Use MRP as selling price by default
+        sku: p.sku || `AUTO-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+        expiryDate: p.expiryDate || p.expirey || p['Expirey']
+    };
+
+    if (!normalized.productName || normalized.costPrice === undefined || normalized.mrp === undefined) {
+      results.errors.push({ productName: normalized.productName, error: 'Missing required fields (Name, Cost, MRP)' });
       continue;
     }
 
-    const exists = await Inventory.findOne({ company: req.companyId, sku: p.sku.toUpperCase(), isActive: true });
+    // Try to parse expiry date if it's a string like "Jun-26"
+    if (typeof normalized.expiryDate === 'string' && normalized.expiryDate.includes('-')) {
+        const parts = normalized.expiryDate.split('-');
+        if (parts.length === 2) {
+            // Assume format MMM-YY (e.g., Jun-26)
+            const monthMap = { 'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5, 'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11 };
+            const mStr = parts[0].toLowerCase().substr(0, 3);
+            const yStr = parts[1];
+            if (monthMap[mStr] !== undefined) {
+                const year = 2000 + parseInt(yStr);
+                normalized.expiryDate = new Date(year, monthMap[mStr], 28); // Set to end of month roughly
+            }
+        }
+    }
+
+    // Check duplication by Name + Batch instead of SKU for bulk uploads from sheets
+    const exists = await Inventory.findOne({
+        company: req.companyId,
+        productName: normalized.productName.trim(),
+        batchNumber: (normalized.batchNumber || '').trim(),
+        isActive: true
+    });
+
     if (exists) {
       results.duplicates++;
       continue;
     }
 
     toInsert.push({
-      ...p,
+      ...normalized,
       company: req.companyId,
-      sku: p.sku.toUpperCase(),
-      quantity: p.quantity || 0,
+      sku: normalized.sku.toUpperCase(),
     });
   }
 

@@ -318,7 +318,7 @@ export default function InventoryPage() {
 
   const downloadTemplate = () => {
     const ws = XLSX.utils.json_to_sheet([
-      { productName: 'Sample Product', sku: 'PRD-001', category: 'Electronics', costPrice: 100, sellingPrice: 150, reorderLevel: 5, vatPct: 13 }
+      { 'S.N': 1, 'Product Name': 'Sample Product', 'Batch': 'BATCH-001', 'QTY': 10, 'Cost Price': 100, 'MPR': 150, 'Expirey': 'Jun-26' }
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Products");
