@@ -93,7 +93,7 @@ export const Textarea = ({ label, className, ...props }) => (
   </label>
 );
 
-export const DatePicker = ({ label, value, onChange, className, ...props }) => {
+export const DatePicker = ({ label, value, onChange, className, position = 'bottom', ...props }) => {
   const { user } = useAuth();
   const format = user?.company?.settings?.dateFormat || 'BS';
   const [show, setShow] = useState(false);
@@ -110,7 +110,6 @@ export const DatePicker = ({ label, value, onChange, className, ...props }) => {
     if (format === 'BS') {
       try {
         const ad = bsToAd(val);
-        // Fix: Use localized date string to prevent one-day shift due to timezone differences
         onChange(toLocalDateString(ad));
       } catch (e) {
         onChange(val);
@@ -146,7 +145,12 @@ export const DatePicker = ({ label, value, onChange, className, ...props }) => {
       </label>
 
       {format === 'BS' && show && (
-        <div className="absolute left-0 z-[100] mt-2 origin-top-left rounded-xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900 w-72 animate-in fade-in zoom-in duration-150">
+        <div className={cn(
+          "absolute z-[100] origin-top-left rounded-xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-900 w-72 animate-in fade-in zoom-in duration-150",
+          position === 'top' ? "bottom-full mb-2 origin-bottom-left" : "top-full mt-2 left-0",
+          position === 'top-right' ? "bottom-full right-0 mb-2 origin-bottom-right" : "",
+          position === 'bottom-right' ? "top-full right-0 mt-2 origin-top-right" : ""
+        )}>
           <BSCalendarInternal value={value} onSelect={(val) => { onChange(val); setShow(false); }} />
         </div>
       )}
