@@ -13,7 +13,7 @@ export default function StaffSales() {
   const [metadata, setMetadata] = useState({ products: [], customers: [] });
   const [modal, setModal] = useState(false);
   const [custModal, setCustModal] = useState(false);
-  const [form, setForm] = useState({ productId: '', productName: '', quantity: 1, amount: '', customerName: '', remarks: '' });
+  const [form, setForm] = useState({ productId: '', productName: '', quantity: 1, sellingPrice: 0, amount: 0, customerName: '', remarks: '' });
   const [custForm, setCustForm] = useState({ name: '', address: '', contactNumber: '', panVat: '', ownerName: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -53,10 +53,27 @@ export default function StaffSales() {
     const pid = e.target.value;
     const prod = metadata.products.find(p => p._id === pid);
     if (prod) {
-      setForm({ ...form, productId: pid, productName: prod.productName, amount: prod.sellingPrice });
+      const sp = prod.sellingPrice || 0;
+      setForm({
+        ...form,
+        productId: pid,
+        productName: prod.productName,
+        sellingPrice: sp,
+        amount: sp * form.quantity
+      });
     } else {
-      setForm({ ...form, productId: '', productName: '', amount: '' });
+      setForm({ ...form, productId: '', productName: '', sellingPrice: 0, amount: 0 });
     }
+  };
+
+  const onQuantityChange = (e) => {
+    const q = Number(e.target.value) || 0;
+    setForm({ ...form, quantity: q, amount: q * form.sellingPrice });
+  };
+
+  const onPriceChange = (e) => {
+    const p = Number(e.target.value) || 0;
+    setForm({ ...form, sellingPrice: p, amount: p * form.quantity });
   };
 
   const submit = async (e) => {
@@ -69,7 +86,7 @@ export default function StaffSales() {
         amount: Number(form.amount),
       });
       setModal(false);
-      setForm({ productId: '', productName: '', quantity: 1, amount: '', customerName: '', remarks: '' });
+      setForm({ productId: '', productName: '', quantity: 1, sellingPrice: 0, amount: 0, customerName: '', remarks: '' });
       load();
     } catch (err) {
       if (err.response?.status === 403 && err.response?.data?.message?.toLowerCase().includes('package')) {
@@ -177,8 +194,16 @@ export default function StaffSales() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Quantity *" type="number" min="1" required value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
-            <Input label="Selling Price *" type="number" min="0" step="0.01" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+            <Input label="Quantity *" type="number" min="1" required value={form.quantity} onChange={onQuantityChange} />
+            <Input label="Selling Price *" type="number" min="0" step="0.01" required value={form.sellingPrice} onChange={onPriceChange} />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-sm font-medium">Total Amount</label>
+            <div className="input bg-slate-50 dark:bg-slate-900/50 flex items-center h-10 px-3 font-bold text-primary-600 border border-slate-200 dark:border-slate-800 rounded-lg">
+                {formatMoney(form.amount)}
+            </div>
+            <p className="text-[10px] text-slate-400 italic">Auto-calculated: Qty × Price</p>
           </div>
 
           <div className="space-y-1">
