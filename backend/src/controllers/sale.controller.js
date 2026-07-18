@@ -16,35 +16,21 @@ const oid = (id) => new mongoose.Types.ObjectId(id);
 /** POST /sales — staff submits a sale */
 export const createSale = asyncHandler(async (req, res) => {
   const companyId = req.companyId;
-  const { productId, productName, quantity, amount, customerName, remarks } = req.body;
+  const { productId, productName, quantity, amount, customerName, remarks, items } = req.body;
 
   // Robust check for inventorySync setting
   let inventorySync = false;
   if (req.user.company && typeof req.user.company === 'object') {
     inventorySync = req.user.company.settings?.inventorySync || false;
   } else if (req.user.company) {
-    // If somehow not populated, fetch it
     const comp = await mongoose.model('Company').findById(req.user.company).select('settings');
     inventorySync = comp?.settings?.inventorySync || false;
   }
 
-  let product = null;
-  if (productId) {
-    product = await Inventory.findOne({ _id: productId, company: companyId }).select('+movements');
-    if (!product) throw ApiError.notFound('Product not found in inventory');
+  // Normalize inputs: support single entry (legacy/mobile) or multiple items
+  const salesItems = items && Array.isArray(items) ? items : [{ productId, productName, quantity, amount }];
 
-    if (inventorySync) {
-      const qty = Number(quantity);
-      if (product.quantity < qty) {
-        throw ApiError.badRequest(`Insufficient stock (${product.quantity} left)`);
-      }
-      product.quantity -= qty;
-      product.movements.push({ type: 'OUT', quantity: qty, note: 'Sale', by: req.user._id });
-      await product.save();
-    }
-  }
-
-  // Handle Customer: Store if new
+  // Handle Customer: Store if new (shared for all items in this entry)
   let customerId = null;
   if (customerName && customerName.trim()) {
     let existingCust = await Customer.findOne({ company: companyId, name: { $regex: `^${customerName.trim()}$`, $options: 'i' } });
@@ -58,44 +44,74 @@ export const createSale = asyncHandler(async (req, res) => {
     customerId = existingCust._id;
   }
 
-  const sale = await Sale.create({
-    company: companyId,
-    staff: req.user._id,
-    product: product?._id || null,
-    productName: product?.productName || productName,
-    quantity, amount,
-    customer: customerId,
-    customerName,
-    remarks,
-  });
+  const createdSales = [];
+  let totalEntryAmount = 0;
 
-  // notify owner(s)
-  const owners = await User.find({ company: companyId, role: 'COMPANY_OWNER', isActive: true });
-  for (const o of owners) {
-    emails.saleSubmitted(o.email, {
-      staffName: req.user.name, productName: sale.productName, amount, quantity,
-    });
-    notify({
-      recipient: o._id, company: companyId, type: 'SALE_SUBMITTED',
-      title: 'New sale', message: `${req.user.name} sold ${quantity} × ${sale.productName} (${amount})`,
-    });
-  }
+  for (const item of salesItems) {
+    let product = null;
+    if (item.productId) {
+      product = await Inventory.findOne({ _id: item.productId, company: companyId }).select('+movements');
+      if (product && inventorySync) {
+        const qty = Number(item.quantity);
+        if (product.quantity < qty) {
+          throw ApiError.badRequest(`Insufficient stock for ${product.productName} (${product.quantity} left)`);
+        }
+        product.quantity -= qty;
+        product.movements.push({ type: 'OUT', quantity: qty, note: 'Sale', by: req.user._id });
+        await product.save();
+      }
+    }
 
-  // low stock alert (only if sync is on)
-  if (inventorySync && product && product.quantity <= product.reorderLevel) {
-    for (const o of owners) {
-      notify({
-        recipient: o._id, company: companyId, type: 'LOW_STOCK',
-        title: 'Low stock alert', message: `${product.productName} is low (${product.quantity} left).`,
-      });
+    const sale = await Sale.create({
+      company: companyId,
+      staff: req.user._id,
+      product: product?._id || item.productId || null,
+      productName: product?.productName || item.productName,
+      quantity: item.quantity,
+      amount: item.amount,
+      customer: customerId,
+      customerName,
+      remarks,
+    });
+
+    createdSales.push(sale);
+    totalEntryAmount += Number(item.amount);
+
+    // low stock alert (only if sync is on)
+    if (inventorySync && product && product.quantity <= product.reorderLevel) {
+       const owners = await User.find({ company: companyId, role: 'COMPANY_OWNER', isActive: true });
+       for (const o of owners) {
+         notify({
+           recipient: o._id, company: companyId, type: 'LOW_STOCK',
+           title: 'Low stock alert', message: `${product.productName} is low (${product.quantity} left).`,
+         });
+       }
     }
   }
 
-  realtime.dashboard(companyId.toString(), { event: 'sale', amount });
-  realtime.activity(companyId.toString(), { text: `${req.user.name} submitted a sale of ${amount}`, at: new Date() });
-  audit({ req, action: 'CREATE_SALE', entity: 'Sale', entityId: sale._id, meta: { amount } });
+  // notify owner(s) once for the total entry
+  const owners = await User.find({ company: companyId, role: 'COMPANY_OWNER', isActive: true });
+  for (const o of owners) {
+    emails.saleSubmitted(o.email, {
+      staffName: req.user.name,
+      productName: salesItems.length > 1 ? `${salesItems.length} products` : createdSales[0].productName,
+      amount: totalEntryAmount,
+      quantity: salesItems.reduce((acc, curr) => acc + Number(curr.quantity), 0),
+    });
+    notify({
+      recipient: o._id, company: companyId, type: 'SALE_SUBMITTED',
+      title: 'New sales entry',
+      message: `${req.user.name} submitted sales totaling ${totalEntryAmount}`,
+    });
+  }
 
-  res.status(201).json({ success: true, data: { sale } });
+  realtime.dashboard(companyId.toString(), { event: 'sale', amount: totalEntryAmount });
+  realtime.activity(companyId.toString(), { text: `${req.user.name} submitted a sales entry of ${totalEntryAmount}`, at: new Date() });
+
+  // Audit the first sale or a summary
+  audit({ req, action: 'CREATE_SALE', entity: 'Sale', entityId: createdSales[0]._id, meta: { totalAmount: totalEntryAmount, itemCount: salesItems.length } });
+
+  res.status(201).json({ success: true, data: { sales: createdSales } });
 });
 
 /** GET /sales?period=&staffId=&startDate=&endDate= */

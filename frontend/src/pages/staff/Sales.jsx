@@ -1,9 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Plus, TrendingUp, UserPlus } from 'lucide-react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Plus, TrendingUp, UserPlus, Trash2 } from 'lucide-react';
 import { api } from '@/api/client';
 import { Card, CardHeader, Button, Input, Textarea, Modal, Table, Spinner, EmptyState, Select } from '@/components/ui';
 import { formatMoney, formatDate } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
+
+const emptyRow = { productId: '', productName: '', quantity: 1, sellingPrice: 0, amount: 0 };
 
 export default function StaffSales() {
   const { user } = useAuth();
@@ -13,7 +15,11 @@ export default function StaffSales() {
   const [metadata, setMetadata] = useState({ products: [], customers: [] });
   const [modal, setModal] = useState(false);
   const [custModal, setCustModal] = useState(false);
-  const [form, setForm] = useState({ productId: '', productName: '', quantity: 1, sellingPrice: 0, amount: 0, customerName: '', remarks: '' });
+
+  const [items, setItems] = useState([{ ...emptyRow }]);
+  const [customerName, setCustomerName] = useState('');
+  const [remarks, setRemarks] = useState('');
+
   const [custForm, setCustForm] = useState({ name: '', address: '', contactNumber: '', panVat: '', ownerName: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -47,46 +53,54 @@ export default function StaffSales() {
       }
     }
   }, [loadMetadata]);
+
   useEffect(() => { load(); }, [load]);
 
-  const onProductChange = (e) => {
-    const pid = e.target.value;
-    const prod = metadata.products.find(p => p._id === pid);
-    if (prod) {
-      const sp = prod.sellingPrice || 0;
-      setForm({
-        ...form,
-        productId: pid,
-        productName: prod.productName,
-        sellingPrice: sp,
-        amount: sp * form.quantity
-      });
-    } else {
-      setForm({ ...form, productId: '', productName: '', sellingPrice: 0, amount: 0 });
+  const addRow = () => setItems([...items, { ...emptyRow }]);
+
+  const removeRow = (index) => {
+    if (items.length === 1) return;
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const updateRow = (index, field, value) => {
+    const next = [...items];
+    next[index][field] = value;
+
+    if (field === 'productId') {
+      const prod = metadata.products.find(p => p._id === value);
+      if (prod) {
+        next[index].productName = prod.productName;
+        next[index].sellingPrice = prod.sellingPrice;
+      }
     }
+
+    if (field === 'productId' || field === 'quantity' || field === 'sellingPrice') {
+        next[index].amount = (Number(next[index].quantity) || 0) * (Number(next[index].sellingPrice) || 0);
+    }
+
+    setItems(next);
   };
 
-  const onQuantityChange = (e) => {
-    const q = Number(e.target.value) || 0;
-    setForm({ ...form, quantity: q, amount: q * form.sellingPrice });
-  };
-
-  const onPriceChange = (e) => {
-    const p = Number(e.target.value) || 0;
-    setForm({ ...form, sellingPrice: p, amount: p * form.quantity });
-  };
+  const totalAmount = useMemo(() => items.reduce((sum, item) => sum + item.amount, 0), [items]);
 
   const submit = async (e) => {
     e.preventDefault();
+    if (items.some(i => !i.productId)) {
+        setError('Please select a product for all rows');
+        return;
+    }
     setSaving(true); setError('');
     try {
       await api.post('/sales', {
-        ...form,
-        quantity: Number(form.quantity),
-        amount: Number(form.amount),
+        items,
+        customerName,
+        remarks,
       });
       setModal(false);
-      setForm({ productId: '', productName: '', quantity: 1, sellingPrice: 0, amount: 0, customerName: '', remarks: '' });
+      setItems([{ ...emptyRow }]);
+      setCustomerName('');
+      setRemarks('');
       load();
     } catch (err) {
       if (err.response?.status === 403 && err.response?.data?.message?.toLowerCase().includes('package')) {
@@ -102,7 +116,7 @@ export default function StaffSales() {
     try {
       await api.post('/customers', custForm);
       setCustModal(false);
-      setForm({ ...form, customerName: custForm.name });
+      setCustomerName(custForm.name);
       setCustForm({ name: '', address: '', contactNumber: '', panVat: '', ownerName: '' });
       loadMetadata();
     } catch (err) {
@@ -119,7 +133,7 @@ export default function StaffSales() {
     return (
       <Card className="p-8 text-center space-y-4">
         <p className="text-red-600 font-medium">{error}</p>
-        <Button onClick={load} variant="outline">Try Again</Button>
+        <Button onClick={() => { setError(''); load(); }} variant="outline">Try Again</Button>
       </Card>
     );
   }
@@ -127,7 +141,7 @@ export default function StaffSales() {
   if (!sales || !summary) return <Spinner />;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Sales Entry</h1>
         <Button onClick={() => setModal(true)}><Plus className="h-4 w-4" /> New Sale</Button>
@@ -163,7 +177,7 @@ export default function StaffSales() {
             </tr>
           )}
           mobileRender={(s) => (
-            <div key={s._id} className="p-4 space-y-2">
+            <div key={s._id} className="p-4 space-y-2 border-b last:border-0 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <p className="font-medium">{s.productName}</p>
                 <p className="font-bold text-primary-600">{formatMoney(s.amount)}</p>
@@ -177,60 +191,97 @@ export default function StaffSales() {
         />
       </Card>
 
-      <Modal open={modal} onClose={() => setModal(false)} title="Submit Sale">
+      <Modal open={modal} onClose={() => setModal(false)} title="Submit Sales Entry" wide>
         {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
-        <form onSubmit={submit} className="space-y-4">
-          <div className="space-y-1">
-            <Select
-              label="Select Product *"
-              value={form.productId}
-              onChange={onProductChange}
-              options={[
-                { value: '', label: 'Select product...' },
-                ...metadata.products.map(p => ({ value: p._id, label: `${p.productName} (Stock: ${p.quantity})` }))
-              ]}
-              required
-            />
+        <form onSubmit={submit} className="space-y-6">
+
+          <div className="overflow-x-auto border rounded-xl dark:border-slate-800">
+            <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 dark:bg-slate-900/50 border-b dark:border-slate-800">
+                    <tr>
+                        <th className="px-3 py-3 font-bold">Product</th>
+                        <th className="px-3 py-3 font-bold w-24">Qty</th>
+                        <th className="px-3 py-3 font-bold w-32">Price</th>
+                        <th className="px-3 py-3 font-bold w-32 text-right">Amount</th>
+                        <th className="px-3 py-3 w-10"></th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y dark:divide-slate-800">
+                    {items.map((row, idx) => (
+                        <tr key={idx} className="group">
+                            <td className="px-2 py-2">
+                                <Select
+                                    value={row.productId}
+                                    onChange={(e) => updateRow(idx, 'productId', e.target.value)}
+                                    options={[
+                                        { value: '', label: 'Select product...' },
+                                        ...metadata.products.map(p => ({ value: p._id, label: `${p.productName} (Stock: ${p.quantity})` }))
+                                    ]}
+                                    required
+                                    className="h-9 text-xs"
+                                />
+                            </td>
+                            <td className="px-2 py-2">
+                                <Input type="number" min="1" required value={row.quantity} onChange={(e) => updateRow(idx, 'quantity', e.target.value)} className="h-9 text-xs" />
+                            </td>
+                            <td className="px-2 py-2">
+                                <Input type="number" min="0" step="0.01" required value={row.sellingPrice} onChange={(e) => updateRow(idx, 'sellingPrice', e.target.value)} className="h-9 text-xs" />
+                            </td>
+                            <td className="px-3 py-2 text-right font-bold text-slate-700 dark:text-slate-200">
+                                {formatMoney(row.amount)}
+                            </td>
+                            <td className="px-2 py-2">
+                                <button type="button" onClick={() => removeRow(idx)} className="text-slate-300 hover:text-red-500 transition-colors">
+                                    <Trash2 className="h-4 w-4" />
+                                </button>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Quantity *" type="number" min="1" required value={form.quantity} onChange={onQuantityChange} />
-            <Input label="Selling Price *" type="number" min="0" step="0.01" required value={form.sellingPrice} onChange={onPriceChange} />
-          </div>
+          <Button type="button" variant="outline" size="sm" onClick={addRow}>
+            <Plus className="h-4 w-4 mr-1" /> Add Product Row
+          </Button>
 
-          <div className="space-y-1">
-            <label className="block text-sm font-medium">Total Amount</label>
-            <div className="input bg-slate-50 dark:bg-slate-900/50 flex items-center h-10 px-3 font-bold text-primary-600 border border-slate-200 dark:border-slate-800 rounded-lg">
-                {formatMoney(form.amount)}
-            </div>
-            <p className="text-[10px] text-slate-400 italic">Auto-calculated: Qty × Price</p>
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start pt-4 border-t dark:border-slate-800">
+             <div className="space-y-4">
+                <div className="space-y-1">
+                    <label className="block text-sm font-medium">Customer Name</label>
+                    <div className="flex gap-2">
+                        <div className="relative flex-1">
+                            <Input
+                            list="customer-list"
+                            placeholder="Select or type customer name..."
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            />
+                            <datalist id="customer-list">
+                                {metadata.customers.map(c => <option key={c._id} value={c.name} />)}
+                            </datalist>
+                        </div>
+                        <Button type="button" variant="outline" size="md" className="shrink-0 px-2" title="Quick Add Customer" onClick={() => setCustModal(true)}>
+                            <UserPlus className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+                <Textarea label="Remarks" rows={3} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional internal notes..." />
+             </div>
 
-          <div className="space-y-1">
-            <label className="block text-sm font-medium mb-1.5">Customer Name</label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  list="customer-list"
-                  placeholder="Select or type customer name..."
-                  value={form.customerName}
-                  onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-                />
-                <datalist id="customer-list">
-                  {metadata.customers.map(c => <option key={c._id} value={c.name} />)}
-                </datalist>
-              </div>
-              <Button type="button" variant="outline" size="md" className="shrink-0 px-2" title="Quick Add Customer" onClick={() => setCustModal(true)}>
-                <UserPlus className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-[10px] text-slate-400 mt-1 italic">Type a new name to register it automatically, or click icon for full details.</p>
-          </div>
-
-          <Textarea label="Remarks" value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} />
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setModal(false)}>Cancel</Button>
-            <Button type="submit" loading={saving}>Submit Sale</Button>
+             <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border-2 border-primary-100 dark:border-primary-900/20 space-y-4 shadow-inner">
+                <div className="flex justify-between items-end">
+                    <span className="text-xs text-slate-500 uppercase font-bold tracking-widest">Total Entry Amount</span>
+                    <span className="text-3xl font-black text-primary-600 leading-none">{formatMoney(totalAmount)}</span>
+                </div>
+                <p className="text-[10px] text-slate-400 italic text-right border-t pt-2 border-slate-200 dark:border-slate-800">
+                    Calculated for {items.length} items
+                </p>
+                <div className="flex justify-end gap-3 pt-2">
+                    <Button type="button" variant="outline" onClick={() => setModal(false)} className="px-6">Cancel</Button>
+                    <Button type="submit" loading={saving} className="px-8">Submit Sale</Button>
+                </div>
+             </div>
           </div>
         </form>
       </Modal>
