@@ -114,8 +114,8 @@ r.get('/sales', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('
 r.get('/sales/analytics', protect, authorize(...MANAGERS), scopeCompany, requireFeature('salesTracking'), sale.salesAnalytics);
 r.get('/sales/me/summary', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('salesTracking'), sale.mySalesSummary);
 r.get('/sales/metadata', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('salesTracking'), sale.getSalesMetadata);
-r.patch('/sales/:id', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('salesTracking'), validate({ body: schemas.updateSale }), sale.updateSale);
 r.delete('/sales/:id', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('salesTracking'), sale.deleteSale);
+r.patch('/sales/:id', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('salesTracking'), validate({ body: schemas.updateSale }), sale.updateSale);
 
 // ============ SALES INVOICES ============
 r.post('/sales-invoices', protect, authorize(...ALL_STAFF), scopeCompany, validate({ body: schemas.createSalesInvoice }), salesInvoice.createSalesInvoice);
