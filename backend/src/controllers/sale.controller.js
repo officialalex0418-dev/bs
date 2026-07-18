@@ -101,10 +101,29 @@ export const createSale = asyncHandler(async (req, res) => {
 /** GET /sales?period=&staffId=&startDate=&endDate= */
 export const listSales = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
+  const { staffId } = req.query;
   const filter = {};
   if (req.companyId) filter.company = req.companyId;
-  if (req.user.role === 'STAFF') filter.staff = req.user._id;
-  else if (req.query.staffId && req.query.staffId !== 'all') filter.staff = req.query.staffId;
+
+  // Logic:
+  // 1. If staffId is 'all', only Managers/Owners can see everything.
+  // 2. If staffId is a specific ID, only Managers/Owners can see it (or the staff themselves).
+  // 3. If staffId is missing, default to ONLY the current user's sales.
+
+  const isManagerial = ['COMPANY_OWNER', 'COMPANY_MANAGER', 'SUPER_ADMIN', 'ADMIN_EMPLOYEE'].includes(req.user.role);
+
+  if (staffId === 'all') {
+    if (!isManagerial) throw ApiError.forbidden('Only managers can view all sales');
+    // filter.staff remains unset to show all
+  } else if (staffId) {
+    if (!isManagerial && staffId !== req.user._id.toString()) {
+        throw ApiError.forbidden('Access denied: You can only view your own sales');
+    }
+    filter.staff = staffId;
+  } else {
+    // Default: Show only own sales
+    filter.staff = req.user._id;
+  }
 
   const { period, startDate, endDate } = req.query;
   if (startDate && endDate) {
