@@ -5,6 +5,9 @@ import User from '../models/User.js';
 import { asyncHandler, ApiError } from '../utils/ApiError.js';
 import { getPagination, paginatedResponse } from '../utils/pagination.js';
 import { audit } from '../utils/audit.js';
+import { uploadFile, deleteFile } from '../services/storage.service.js';
+
+// ---------- Notifications ----------
 
 // ---------- Notifications ----------
 export const myNotifications = asyncHandler(async (req, res) => {
@@ -86,12 +89,24 @@ export const updateSettings = asyncHandler(async (req, res) => {
 
 // ---------- Profile (staff self-service) ----------
 export const updateMyProfile = asyncHandler(async (req, res) => {
-  const allowed = ['phone', 'profilePhoto'];
+  const { phone, profilePhoto } = req.body;
   const user = await User.findById(req.user._id).populate({
     path: 'designation',
     populate: { path: 'department', select: 'name' }
   }).populate('company');
-  for (const k of allowed) if (req.body[k] !== undefined) user[k] = req.body[k];
+
+  if (phone !== undefined) user.phone = phone;
+
+  if (profilePhoto !== undefined) {
+    if (profilePhoto && profilePhoto.startsWith('data:')) {
+      // If there was an old photo, we could delete it, but often we just overwrite URL
+      // deleteFile(user.profilePhoto).catch(() => {});
+      user.profilePhoto = await uploadFile(profilePhoto, 'profiles');
+    } else {
+      user.profilePhoto = profilePhoto;
+    }
+  }
+
   await user.save({ validateBeforeSave: true });
   audit({ req, action: 'UPDATE_PROFILE', entity: 'User', entityId: user._id });
   res.json({ success: true, data: { user: user.toSafeJSON() } });

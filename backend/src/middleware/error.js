@@ -1,5 +1,6 @@
 import { env } from '../config/env.js';
 import { ApiError } from '../utils/ApiError.js';
+import { logger } from '../utils/logger.js';
 
 export function notFoundHandler(req, _res, next) {
   next(ApiError.notFound(`Route not found: ${req.method} ${req.originalUrl}`));
@@ -24,7 +25,11 @@ export function errorHandler(err, req, res, _next) {
     message = `Duplicate value for: ${fields.join(', ')}`;
   }
 
-  if (status >= 500) console.error('💥', err);
+  if (status >= 500) {
+    logger.error('Unhandled Server Error', err);
+  } else {
+    logger.warn(`${status} - ${message}`, { url: req.originalUrl, method: req.method });
+  }
 
   res.status(status).json({
     success: false,

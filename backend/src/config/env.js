@@ -1,7 +1,15 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const required = ['MONGO_URI', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'];
+const required = [
+  'MONGO_URI',
+  'JWT_ACCESS_SECRET',
+  'JWT_REFRESH_SECRET',
+  'R2_ACCESS_KEY_ID',
+  'R2_SECRET_ACCESS_KEY',
+  'R2_BUCKET',
+  'R2_ENDPOINT'
+];
 for (const key of required) {
   if (!process.env[key]) {
     if (process.env.NODE_ENV === 'production') {
@@ -34,6 +42,13 @@ export const env = {
     from: process.env.EMAIL_FROM || process.env.SMTP_FROM || process.env.EMAIL_USER || process.env.SMTP_USER || process.env.MAIL_USER,
   },
   googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
+  r2: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    bucket: process.env.R2_BUCKET,
+    endpoint: process.env.R2_ENDPOINT,
+    publicUrl: process.env.R2_PUBLIC_URL || '', // If using a custom domain for R2
+  },
   rateLimit: {
     windowMinutes: parseInt(process.env.RATE_LIMIT_WINDOW_MINUTES || '15', 10),
     max: parseInt(process.env.RATE_LIMIT_MAX || '300', 10),

@@ -9,6 +9,7 @@ import { audit } from '../utils/audit.js';
 import { emails } from '../services/email.service.js';
 import { notify } from '../services/notification.service.js';
 import { realtime } from '../sockets/index.js';
+import { uploadFile } from '../services/storage.service.js';
 import { ROLES } from '../constants/roles.js';
 
 /** GET /companies (Super Admin) */
@@ -39,8 +40,13 @@ export const createCompany = asyncHandler(async (req, res) => {
   const pkg = packageId ? await Package.findById(packageId) : null;
   if (packageId && !pkg) throw ApiError.notFound('Package not found');
 
+  let logoUrl = logo;
+  if (logo && logo.startsWith('data:')) {
+    logoUrl = await uploadFile(logo, 'logos');
+  }
+
   const company = await Company.create({
-    name, address, panVat, phone, email, logo,
+    name, address, panVat, phone, email, logo: logoUrl,
     registrationNumber, website, description, additionalInfo,
     package: pkg?._id || null,
     packageAssignedAt: pkg ? new Date() : null,
@@ -88,9 +94,15 @@ export const myCompany = asyncHandler(async (req, res) => {
 /** PATCH /companies/me — company owner can edit own company details */
 export const updateMyCompany = asyncHandler(async (req, res) => {
   if (!req.user.company) throw ApiError.forbidden('No company associated with this account');
+
   const updates = (({ name, address, panVat, phone, email, logo, settings, registrationNumber, website, description, additionalInfo, location, checkInRadiusMeters }) =>
     ({ name, address, panVat, phone, email, logo, settings, registrationNumber, website, description, additionalInfo, location, checkInRadiusMeters }))(req.body);
+
   Object.keys(updates).forEach((k) => updates[k] === undefined && delete updates[k]);
+
+  if (updates.logo && updates.logo.startsWith('data:')) {
+    updates.logo = await uploadFile(updates.logo, 'logos');
+  }
 
   const companyId = req.user.company._id || req.user.company;
   const company = await Company.findByIdAndUpdate(companyId, updates, { new: true, runValidators: true })
@@ -106,6 +118,10 @@ export const updateCompany = asyncHandler(async (req, res) => {
   const updates = (({ name, address, panVat, phone, email, logo, status, settings, registrationNumber, website, description, additionalInfo }) =>
     ({ name, address, panVat, phone, email, logo, status, settings, registrationNumber, website, description, additionalInfo }))(req.body);
   Object.keys(updates).forEach((k) => updates[k] === undefined && delete updates[k]);
+
+  if (updates.logo && updates.logo.startsWith('data:')) {
+    updates.logo = await uploadFile(updates.logo, 'logos');
+  }
 
   const company = await Company.findByIdAndUpdate(req.params.id, updates, {
     new: true, runValidators: true,
