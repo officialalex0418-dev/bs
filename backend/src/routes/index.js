@@ -118,16 +118,16 @@ r.delete('/sales/:id', protect, authorize(...ALL_STAFF), scopeCompany, requireFe
 r.patch('/sales/:id', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('salesTracking'), validate({ body: schemas.updateSale }), sale.updateSale);
 
 // ============ SALES INVOICES ============
-r.post('/sales-invoices', protect, authorize(...ALL_STAFF), scopeCompany, validate({ body: schemas.createSalesInvoice }), salesInvoice.createSalesInvoice);
-r.get('/sales-invoices', protect, authorize(...MANAGERS), scopeCompany, salesInvoice.listSalesInvoices);
-r.get('/sales-invoices/:id', protect, authorize(...MANAGERS), scopeCompany, salesInvoice.getSalesInvoice);
-r.patch('/sales-invoices/:id', protect, authorize(...MANAGERS), scopeCompany, validate({ body: schemas.updateSalesInvoice }), salesInvoice.updateSalesInvoice);
-r.delete('/sales-invoices/:id', protect, authorize(...OWNERS), scopeCompany, salesInvoice.deleteSalesInvoice);
+r.post('/sales-invoices', protect, authorize(...ALL_STAFF), scopeCompany, requireFeature('distributorManagement'), validate({ body: schemas.createSalesInvoice }), salesInvoice.createSalesInvoice);
+r.get('/sales-invoices', protect, authorize(...MANAGERS), scopeCompany, requireFeature('distributorManagement'), salesInvoice.listSalesInvoices);
+r.get('/sales-invoices/:id', protect, authorize(...MANAGERS), scopeCompany, requireFeature('distributorManagement'), salesInvoice.getSalesInvoice);
+r.patch('/sales-invoices/:id', protect, authorize(...MANAGERS), scopeCompany, requireFeature('distributorManagement'), validate({ body: schemas.updateSalesInvoice }), salesInvoice.updateSalesInvoice);
+r.delete('/sales-invoices/:id', protect, authorize(...OWNERS), scopeCompany, requireFeature('distributorManagement'), salesInvoice.deleteSalesInvoice);
 
 // ============ PURCHASES ============
-r.post('/purchases', protect, authorize(...MANAGERS), scopeCompany, validate({ body: schemas.createPurchase }), purchase.createPurchase);
-r.get('/purchases', protect, authorize(...MANAGERS), scopeCompany, purchase.listPurchases);
-r.patch('/purchases/:id', protect, authorize(...MANAGERS), scopeCompany, purchase.updatePurchase);
+r.post('/purchases', protect, authorize(...MANAGERS), scopeCompany, requireFeature('vendorManagement'), validate({ body: schemas.createPurchase }), purchase.createPurchase);
+r.get('/purchases', protect, authorize(...MANAGERS), scopeCompany, requireFeature('vendorManagement'), purchase.listPurchases);
+r.patch('/purchases/:id', protect, authorize(...MANAGERS), scopeCompany, requireFeature('vendorManagement'), purchase.updatePurchase);
 
 // ============ INVENTORY (feature-gated) ============
 r.get('/inventory', protect, authorize(...MANAGERS), scopeCompany, requireFeature('inventoryManagement'), inventory.listInventory);
@@ -139,14 +139,14 @@ r.delete('/inventory/:id', protect, authorize(...OWNERS), scopeCompany, requireF
 r.delete('/inventory/:id/hard', protect, authorize(...OWNERS), scopeCompany, requireFeature('inventoryManagement'), inventory.hardDeleteProduct);
 
 // ============ DISTRIBUTORS (feature-gated) ============
-r.get('/distributors', protect, authorize(...MANAGERS), scopeCompany, requireFeature('vendorManagement'), distributor.listDistributors);
-r.post('/distributors', protect, authorize(...MANAGERS), scopeCompany, requireFeature('vendorManagement'), distributor.createDistributor);
-r.patch('/distributors/:id', protect, authorize(...MANAGERS), scopeCompany, requireFeature('vendorManagement'), distributor.updateDistributor);
-r.delete('/distributors/:id', protect, authorize(...OWNERS), scopeCompany, requireFeature('vendorManagement'), distributor.deleteDistributor);
-r.delete('/distributors/:id/hard', protect, authorize(...OWNERS), scopeCompany, requireFeature('vendorManagement'), distributor.hardDeleteDistributor);
-r.get('/distributors/analytics', protect, authorize(...MANAGERS), scopeCompany, distributor.distributorAnalytics);
-r.get('/distributors/:id', protect, authorize(...MANAGERS), scopeCompany, distributor.getDistributorDetails);
-r.get('/distributors/:id/ledger', protect, authorize(...MANAGERS), scopeCompany, distributor.getLedger);
+r.get('/distributors', protect, authorize(...MANAGERS), scopeCompany, requireFeature('distributorManagement'), distributor.listDistributors);
+r.post('/distributors', protect, authorize(...MANAGERS), scopeCompany, requireFeature('distributorManagement'), distributor.createDistributor);
+r.patch('/distributors/:id', protect, authorize(...MANAGERS), scopeCompany, requireFeature('distributorManagement'), distributor.updateDistributor);
+r.delete('/distributors/:id', protect, authorize(...OWNERS), scopeCompany, requireFeature('distributorManagement'), distributor.deleteDistributor);
+r.delete('/distributors/:id/hard', protect, authorize(...OWNERS), scopeCompany, requireFeature('distributorManagement'), distributor.hardDeleteDistributor);
+r.get('/distributors/analytics', protect, authorize(...MANAGERS), scopeCompany, requireFeature('distributorManagement'), distributor.distributorAnalytics);
+r.get('/distributors/:id', protect, authorize(...MANAGERS), scopeCompany, requireFeature('distributorManagement'), distributor.getDistributorDetails);
+r.get('/distributors/:id/ledger', protect, authorize(...MANAGERS), scopeCompany, requireFeature('distributorManagement'), distributor.getLedger);
 
 // ============ CHEQUES ============
 r.get('/cheques', protect, authorize(...MANAGERS), scopeCompany, cheque.listCheques);

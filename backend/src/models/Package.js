@@ -16,6 +16,7 @@ const packageSchema = new mongoose.Schema(
       employeeTracking: { type: Boolean, default: true },
       inventoryManagement: { type: Boolean, default: false },
       vendorManagement: { type: Boolean, default: false },
+      distributorManagement: { type: Boolean, default: false },
       payrollManagement: { type: Boolean, default: false },
       salesTracking: { type: Boolean, default: false },
       complaintChat: { type: Boolean, default: false },

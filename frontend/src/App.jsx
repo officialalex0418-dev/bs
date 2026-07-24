@@ -144,7 +144,7 @@ export default function App() {
     if (item.to === '/company/complaints' && !hasFeature('complaintChat')) return false;
     if (item.to === '/company/sales' && !hasFeature('salesTracking')) return false;
     if (item.to === '/company/inventory' && !hasFeature('inventoryManagement')) return false;
-    if (item.to === '/company/distributors' && !hasFeature('vendorManagement')) return false;
+    if (item.to === '/company/distributors' && !hasFeature('distributorManagement')) return false;
     if (item.to === '/company/vendors' && !hasFeature('vendorManagement')) return false;
     if (item.to === '/company/payroll' && !hasFeature('payrollManagement')) return false;
 
@@ -178,8 +178,10 @@ export default function App() {
       if (perms.leaves) finalStaffNav.push({ to: '/staff/management/leaves', label: 'Leave Mgmt', icon: CalendarOff });
       if (perms.salesTracker && hasFeature('salesTracking') && user.role !== 'STAFF') finalStaffNav.push({ to: '/staff/management/sales', label: 'Sales Mgmt', icon: TrendingUp });
       if (perms.inventory && hasFeature('inventoryManagement')) finalStaffNav.push({ to: '/staff/management/inventory', label: 'Inventory', icon: Boxes });
-      if (perms.distributors && hasFeature('vendorManagement')) {
+      if (perms.distributors && hasFeature('distributorManagement')) {
          finalStaffNav.push({ to: '/staff/management/distributors', label: 'Distributors', icon: Truck });
+      }
+      if (perms.distributors && hasFeature('vendorManagement')) {
          finalStaffNav.push({ to: '/staff/management/vendors', label: 'Vendors', icon: Building2 });
       }
       if (perms.payroll && hasFeature('payrollManagement')) finalStaffNav.push({ to: '/staff/management/payroll', label: 'Payroll', icon: Wallet });

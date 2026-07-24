@@ -64,13 +64,6 @@ export default function Login() {
         <div className="mt-4 text-center">
           <Link to="/forgot-password" className="text-sm text-primary-600 hover:underline">Forgot password?</Link>
         </div>
-
-        <div className="mt-6 rounded-lg bg-slate-50 p-3 text-xs text-slate-500 dark:bg-slate-800">
-          <p className="font-semibold">Demo accounts (after seeding):</p>
-          <p>Super Admin — admin@businesssarthi.com / SuperAdmin@123</p>
-          <p>Owner — owner@himalayatraders.com / Owner@1234</p>
-          <p>Staff — hari@himalayatraders.com / Staff@1234</p>
-        </div>
       </Card>
     </div>
   );

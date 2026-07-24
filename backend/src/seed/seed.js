@@ -42,17 +42,17 @@ async function seed() {
       {
         name: 'Starter', price: 2999, maxStaff: 10, trackingIntervalMinutes: 120,
         description: 'Basic tracking for small teams',
-        features: { employeeTracking: true, inventoryManagement: false, vendorManagement: false, payrollManagement: false, salesTracking: true },
+        features: { employeeTracking: true, inventoryManagement: false, vendorManagement: false, distributorManagement: false, payrollManagement: false, salesTracking: true },
       },
       {
         name: 'Growth', price: 7999, maxStaff: 50, trackingIntervalMinutes: 60,
         description: 'Tracking + inventory + payroll',
-        features: { employeeTracking: true, inventoryManagement: true, vendorManagement: true, payrollManagement: true, salesTracking: true },
+        features: { employeeTracking: true, inventoryManagement: true, vendorManagement: true, distributorManagement: true, payrollManagement: true, salesTracking: true },
       },
       {
         name: 'Enterprise', price: 19999, maxStaff: 500, trackingIntervalMinutes: 30,
         description: 'Everything, highest tracking frequency',
-        features: { employeeTracking: true, inventoryManagement: true, vendorManagement: true, payrollManagement: true, salesTracking: true },
+        features: { employeeTracking: true, inventoryManagement: true, vendorManagement: true, distributorManagement: true, payrollManagement: true, salesTracking: true },
       },
     ];
 

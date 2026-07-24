@@ -7,7 +7,8 @@ import { formatMoney } from '@/lib/utils';
 const FEATURES = [
   ['employeeTracking', 'Employee Tracking'],
   ['inventoryManagement', 'Inventory Management'],
-  ['vendorManagement', 'Vendor Management'],
+  ['vendorManagement', 'Vendor Management (Purchase)'],
+  ['distributorManagement', 'Distributor Management (Invoice)'],
   ['payrollManagement', 'Payroll Management'],
   ['salesTracking', 'Sales Tracking'],
   ['complaintChat', 'Complaint & Chat'],
@@ -19,7 +20,7 @@ const emptyForm = {
   chatRetentionDays: 30,
   features: {
     employeeTracking: true, inventoryManagement: false, vendorManagement: false,
-    payrollManagement: false, salesTracking: false, complaintChat: false
+    distributorManagement: false, payrollManagement: false, salesTracking: false, complaintChat: false
   },
 };
 
